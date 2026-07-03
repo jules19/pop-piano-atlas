@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Pop Piano Atlas — every way to play the chords you know</title>
+  <link rel="stylesheet" href="css/styles.css" />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ctext y='24' font-size='24'%3E🎹%3C/text%3E%3C/svg%3E" />
+</head>
+<body>
+
+  <header class="top">
+    <div class="brand">
+      <h1>Pop Piano <span class="atlas">Atlas</span></h1>
+      <span class="tagline">You know the chords. Now learn every way to play them.</span>
+    </div>
+
+    <div class="transport">
+      <button id="play" class="play-btn" title="Play / stop (Space)" aria-label="Play">
+        <svg viewBox="0 0 16 16"><path id="play-icon" d="M4 2l10 6-10 6z"/></svg>
+      </button>
+
+      <div class="ctl">
+        <label>Tempo</label>
+        <div class="tempo-wrap">
+          <input id="tempo" type="range" min="48" max="176" value="84" />
+          <span class="bpm" id="bpm">84 bpm</span>
+        </div>
+      </div>
+
+      <div class="ctl">
+        <label>Energy</label>
+        <div class="seg energy" id="energy">
+          <button data-v="verse" class="on">Verse</button>
+          <button data-v="chorus">Chorus</button>
+        </div>
+      </div>
+
+      <div class="ctl">
+        <label>Hands</label>
+        <div class="seg hands" id="hands">
+          <button data-v="both" class="on">Both</button>
+          <button data-v="lh">Left</button>
+          <button data-v="rh">Right</button>
+        </div>
+      </div>
+
+      <div class="ctl">
+        <label>Practice</label>
+        <div style="display:flex; gap:6px">
+          <button id="metro" class="toggle" title="Metronome click">Click</button>
+          <button id="countin" class="toggle" title="One bar of count-in before playback">Count-in</button>
+        </div>
+      </div>
+
+      <div class="ctl">
+        <label>Take it away</label>
+        <button id="midi" class="midi-btn" title="Download exactly what you hear as a MIDI file">↓ MIDI</button>
+      </div>
+    </div>
+  </header>
+
+  <section class="prog-strip">
+    <div class="prog-row1">
+      <select id="preset" title="Progression presets"></select>
+      <input id="prog" class="prog-input" spellcheck="false" autocomplete="off"
+             placeholder="C | G | Am | F   —   bars split by |, two chords a bar allowed" />
+      <div class="transpose">
+        <button id="tr-down" title="Transpose down a semitone">−</button>
+        <button id="tr-up" title="Transpose up a semitone">+</button>
+      </div>
+      <span class="key-badge" id="keybadge"></span>
+    </div>
+    <div class="bars" id="bars"></div>
+    <div class="prog-hint" id="proghint">Type any chords — triads, m7, sus2/4, add9, slash bass like G/B — then press Enter.</div>
+  </section>
+
+  <main class="main">
+    <nav class="deck" id="deck" aria-label="Accompaniment patterns"></nav>
+
+    <section class="stage">
+      <div class="panel">
+        <div class="stage-head">
+          <h2 id="pat-name">—</h2>
+          <span class="tag" id="pat-tag"></span>
+          <div class="stage-meta" id="pat-meta"></div>
+        </div>
+        <div class="kbd-wrap">
+          <svg id="kbd" class="kbd" preserveAspectRatio="none"></svg>
+          <div class="kbd-legend">
+            <span><span class="sw lh"></span>left hand</span>
+            <span><span class="sw rh"></span>right hand</span>
+            <span class="under-fingers" id="under-fingers"></span>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="rmap-head">
+          <h3>One bar, under the microscope</h3>
+          <span class="prog-hint" id="rmap-note"></span>
+        </div>
+        <div class="rmap" id="rmap">
+          <div class="rmap-rows">
+            <div class="rmap-row"><span class="lbl rh">RH</span><div class="rmap-lane" id="lane-rh"></div></div>
+            <div class="rmap-row"><span class="lbl lh">LH</span><div class="rmap-lane" id="lane-lh"></div></div>
+          </div>
+          <div class="rmap-count" id="rmap-count"></div>
+          <div class="rmap-playhead" id="rmap-ph"></div>
+        </div>
+      </div>
+
+      <div class="panel learn" id="learn">
+        <div class="block">
+          <h3>Your hands</h3>
+          <div class="hand-lines">
+            <div class="hand-line"><span class="hl lh">LH</span><p id="how-lh"></p></div>
+            <div class="hand-line"><span class="hl rh">RH</span><p id="how-rh"></p></div>
+          </div>
+        </div>
+        <div class="block">
+          <h3>Why it works</h3>
+          <p id="why"></p>
+        </div>
+        <div class="block">
+          <h3>Reach for it when</h3>
+          <p id="use"></p>
+        </div>
+        <div class="block">
+          <h3>Hear it in</h3>
+          <ul class="songs-list" id="songs"></ul>
+        </div>
+        <div class="tip-box"><b>Practice tip · </b><span id="tip"></span></div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="foot">
+    <kbd>Space</kbd> play / stop &nbsp;·&nbsp; <kbd>←</kbd><kbd>→</kbd> flip through patterns while the loop plays &nbsp;·&nbsp; pattern swaps land on the next barline, so the music never stops
+  </footer>
+
+  <script src="js/theory.js"></script>
+  <script src="js/patterns.js"></script>
+  <script src="js/engine.js"></script>
+  <script src="js/audio.js"></script>
+  <script src="js/ui.js"></script>
+</body>
+</html>
