@@ -224,8 +224,8 @@
   function voiceChord(chord, prevVoicing, color) {
     let pcs = chord.intervals.slice();
     const isPlainTriad = chord.quality === 'maj' || chord.quality === 'm';
-    if (color === 'add9' && isPlainTriad) pcs = [...pcs, 14];
-    if (color === 'sus2' && isPlainTriad) pcs = pcs.map((i) => (i === 4 || i === 3 ? 2 : i));
+    // colours ADD to the triad, never replace the third — chord identity is sacred
+    if ((color === 'add9' || color === 'add2') && isPlainTriad) pcs = [...pcs, 14];
     // absolute pitch classes
     const notePcs = [...new Set(pcs.map((i) => (chord.rootPc + i) % 12))];
 
@@ -285,24 +285,36 @@
     return candidates[0];
   }
 
+  /** The interval filling a chord's "third slot": its real third, or the sus tone
+   *  (4th/2nd) for chords that deliberately have none, or the fifth as a last resort. */
+  function thirdSlot(chord) {
+    if (chord.intervals.includes(4)) return 4;
+    if (chord.intervals.includes(3)) return 3;
+    if (chord.intervals.includes(5)) return 5; // sus4
+    if (chord.intervals.includes(2)) return 2; // sus2
+    return 7;
+  }
+
   /** Resolve a left-hand role token to midi notes for a chord.
-   *  Roles: 'R' root · '5' fifth · '8' octave · '10' tenth · '3','6' chordal steps ·
+   *  Roles: 'R' bass · '5' fifth · '8' bass octave · '10' tenth · '3','6' chordal steps ·
    *  'pedal' key tonic · '5-' fifth below root
+   *  Slash chords: 'R'/'8' follow the slash BASS, but interval roles are built on the
+   *  chord ROOT — so every left-hand note stays a chord tone (G/B: R→B, 5→D, never F#).
    */
   function lhRole(role, chord, keyTonicPc) {
-    const rootM = bassMidi(chord.bassPc, RENDER.lhTargetRoot + 2);
-    const third = chord.isMinor ? 3 : 4;
+    const bassM = bassMidi(chord.bassPc, RENDER.lhTargetRoot + 2);
+    const rootM = chord.hasSlash ? bassMidi(chord.rootPc, RENDER.lhTargetRoot + 2) : bassM;
+    const third = thirdSlot(chord);
+    const fifth = chord.quality === 'dim' || chord.quality === 'm7b5' ? 6 : 7;
     switch (role) {
       case 'R':
-        return rootM;
-      case '5': {
-        const fifth = chord.quality === 'dim' || chord.quality === 'm7b5' ? 6 : 7;
+        return bassM;
+      case '5':
         return rootM + fifth;
-      }
       case '5-':
-        return rootM - 5; // fifth below = fourth down
+        return rootM + fifth - 12;
       case '8':
-        return rootM + 12;
+        return bassM + 12;
       case '3':
         return rootM + third;
       case '6':
@@ -314,7 +326,7 @@
       case 'pedal':
         return bassMidi(keyTonicPc, RENDER.lhTargetRoot);
       default:
-        return rootM;
+        return bassM;
     }
   }
 
@@ -328,6 +340,7 @@
     transposeSymbol,
     voiceChord,
     lhRole,
+    thirdSlot,
     bassMidi,
     RENDER,
     SHARP_NAMES,

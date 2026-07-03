@@ -106,9 +106,19 @@
       }
     }
     const names = (set) => [...set].sort((a, b) => a - b).map(T.midiToName).join(' ');
-    const sym = ctx.segments[0].chord.symbol;
-    $('under-fingers').innerHTML =
-      `beat 1 of ${sym}: <b class="l">${names(notes.lh) || '—'}</b> · <b class="r">${names(notes.rh) || '—'}</b>`;
+    const chord = ctx.segments[0].chord;
+    // name the inversion so a voice-led voicing (e.g. D-G-B for G) reads as intentional
+    const rhSorted = [...notes.rh].sort((a, b) => a - b);
+    let inv = '';
+    if (rhSorted.length >= 3) {
+      const rel = ((rhSorted[0] % 12) - chord.rootPc + 12) % 12;
+      inv = rel === 0 ? 'root position' : rel === 3 || rel === 4 ? '1st inversion' : rel === 6 || rel === 7 ? '2nd inversion' : '';
+    }
+    const el = $('under-fingers');
+    el.innerHTML =
+      `beat 1 of ${chord.symbol}: <b class="l">${names(notes.lh) || '—'}</b> · <b class="r">${names(notes.rh) || '—'}</b>` +
+      (inv ? ` <span class="inv">(${inv})</span>` : '');
+    el.title = 'The Atlas voices each chord as close as possible to the previous one — smooth voice leading. That is why you often get inversions instead of root position.';
   }
 
   // ------------------------------------------------------------------ stage: header + learn

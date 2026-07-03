@@ -2,11 +2,13 @@
  * 22 curated accompaniment patterns + progression presets.
  *
  * Grid: 16 sixteenth-note steps per 4/4 bar. Every pattern is data:
- *   lh events: { s, d, n: [roles], v? }        roles: R 5 5- 8 3 6 10 pedal
- *   rh events: { s, d, n, v?, mod?, next? }    n: 'chord' | 'shell' | 'top' | [voicing indices]
- *                                                 | { arp: role }  (single chord-tone in RH register)
- *                                                 | 'anchor'       (key-tonic 5th+octave, chord-independent)
- *   mod: 'sus4' re-voices that hit with a suspended 4th; next: true renders against the NEXT chord.
+ *   lh events: { s, d, n: [roles], v? }              roles: R 5 5- 8 3 6 10 pedal
+ *   rh events: { s, d, n, v?, mod?, anticipate? }    n: 'chord' | 'shell' | 'top' | [voicing indices]
+ *                                                       | { arp: role }  (single chord-tone in RH register)
+ *                                                       | 'anchor'       (key-tonic 5th+octave, chord-independent)
+ *   mod: 'sus4' re-voices that hit with a suspended 4th (added colour never replaces the third).
+ *   anticipate: true — the note belongs to the chord it LANDS on (step + dur), which is how
+ *   pop anticipations work: pushed hits sound the coming chord, including mid-bar changes.
  */
 (function () {
   'use strict';
@@ -133,11 +135,12 @@
       rh: [
         { s: 0, d: 4, n: [0], v: 0.75 },
         { s: 4, d: 4, n: [1], v: 0.65 },
-        { s: 8, d: 8, n: [2], v: 0.7 },
+        { s: 8, d: 4, n: [2], v: 0.7 },
+        { s: 12, d: 4, n: [3], v: 0.6 },
       ],
       how: {
         lh: 'One deep root, held all bar.',
-        rh: 'Play the chord one note at a time, bottom to top, and let the pedal gather them.',
+        rh: 'Play the chord one note at a time, bottom to top — four steps to the octave — and let the pedal gather them.',
       },
       why:
         'A broken chord is the same information as a block chord delivered with suspense. With the sustain pedal down, the notes accumulate into harmony — you get shimmer for the price of three fingers.',
@@ -272,16 +275,17 @@
       pedal: 'chord',
       color: 'add9',
       lh: [
-        { s: 0, d: 14, n: ['R'] },
-        { s: 14, d: 2, n: ['R'], next: true },
+        { s: 0, d: 8, n: ['R'] },
+        { s: 8, d: 6, n: ['R'], v: 0.6 },
+        { s: 14, d: 2, n: ['R'], anticipate: true },
       ],
       rh: [
         { s: 0, d: 6, n: 'chord', v: 0.8 },
-        { s: 6, d: 8, n: 'chord', v: 0.65 },
-        { s: 14, d: 2, n: 'chord', v: 0.75, next: true },
+        { s: 6, d: 8, n: 'chord', v: 0.65, anticipate: true },
+        { s: 14, d: 2, n: 'chord', v: 0.75, anticipate: true },
       ],
       how: {
-        lh: 'Root held long — then jump to the NEXT bar’s root half a beat early.',
+        lh: 'Root on 1, echoed softly on 3 — then jump to the NEXT root half a beat early.',
         rh: 'Chord on 1, again on the “and” of 2… then the next chord lands on the “and” of 4, before the barline.',
       },
       why:
@@ -302,7 +306,7 @@
       bpm: 84,
       feel: 'straight',
       pedal: 'chord',
-      color: 'add9',
+      color: null,
       lh: [
         { s: 0, d: 8, n: ['R'] },
         { s: 8, d: 8, n: ['5'] },
@@ -335,7 +339,7 @@
       bpm: 108,
       feel: 'straight',
       pedal: 'none',
-      color: 'sus2',
+      color: 'add2',
       lh: [{ s: 0, d: 16, n: ['R'] }],
       rh: [
         { s: 0, d: 4, n: 'chord', v: 0.85 },
@@ -350,7 +354,7 @@
         rh: 'The guitar strum D–DU–UDU: hits on 1, 2, and-of-2, and-of-3, 4, and-of-4. Beat 3 is silent — that gap IS the pattern.',
       },
       why:
-        'The missing downbeat on 3 is what gives this rhythm its skip. Every guitarist learns it first; on piano it instantly reads as “acoustic, warm, sung around a fire”. The sus2 colour keeps repeated chords from cloying.',
+        'The missing downbeat on 3 is what gives this rhythm its skip. Every guitarist learns it first; on piano it instantly reads as “acoustic, warm, sung around a fire”. An added 2nd inside each chord keeps the repetition from cloying — colour on top of the triad, never instead of it.',
       use: 'Uptempo acoustic pop; covers of guitar songs; choruses that should bounce, not pound.',
       songs: ['“Love Story”, “Riptide”, “Ho Hey” — the strum is the genre'],
       tip: 'Lighten the up-strums (the off-beats). Down heavy, up feathered.',
@@ -394,7 +398,7 @@
       bpm: 88,
       feel: 'straight',
       pedal: 'chord',
-      color: 'add9',
+      color: null,
       lh: [
         { s: 0, d: 8, n: ['R'] },
         { s: 8, d: 8, n: ['5'] },

@@ -66,8 +66,46 @@
     return 0;
   }
 
-  function nextSegmentIndex(ctx, segIdx) {
-    return (segIdx + 1) % ctx.segments.length;
+  function segIndexFor(ctx, bar, step) {
+    const b = ((bar % ctx.totalBars) + ctx.totalBars) % ctx.totalBars;
+    return segmentAt(ctx, b, Math.min(Math.max(step, 0), 15));
+  }
+
+  function barIsSplit(ctx, bar) {
+    const b = ((bar % ctx.totalBars) + ctx.totalBars) % ctx.totalBars;
+    return ctx.segments.some((s) => s.bar === b && s.start === 8);
+  }
+
+  /**
+   * Resolve where an event belongs harmonically. Returns placement pieces:
+   * [{ step, dur, segIdx, intoNextBar?, reattack? }]
+   *
+   * - `anticipate: true` events belong to the chord they LAND on (step + dur):
+   *   the pop anticipation — including mid-bar chord changes and the next bar.
+   * - Long notes that substantially overhang a mid-bar chord change are split and
+   *   re-attacked on the new chord (what a real player does with a whole note
+   *   when the harmony moves at beat 3).
+   * - Short syncopated overhangs (< a beat past the change) simply ring over,
+   *   like a pedalled suspension.
+   */
+  function placeEvent(ctx, bar, ev) {
+    const s = ev.s;
+    const d = ev.d;
+    if (ev.anticipate) {
+      const land = s + d;
+      if (land >= STEPS_PER_BAR) {
+        return [{ step: s, dur: d, segIdx: segIndexFor(ctx, bar + 1, land - STEPS_PER_BAR), intoNextBar: true }];
+      }
+      return [{ step: s, dur: d, segIdx: segIndexFor(ctx, bar, land) }];
+    }
+    const segIdx = segIndexFor(ctx, bar, s);
+    if (barIsSplit(ctx, bar) && s < 8 && s + d >= 12) {
+      return [
+        { step: s, dur: 8 - s, segIdx },
+        { step: 8, dur: s + d - 8, segIdx: segIndexFor(ctx, bar, 8), reattack: true },
+      ];
+    }
+    return [{ step: s, dur: d, segIdx }];
   }
 
   function susVoicing(ctx, segIdx) {
@@ -87,14 +125,15 @@
   function arpNote(role, chord) {
     let root = chord.rootPc + 48; // C3 octave
     while (root < 55) root += 12; // lift into G3..F#4
-    const third = chord.isMinor ? 3 : 4;
+    const third = T.thirdSlot(chord);
+    const fifth = chord.quality === 'dim' || chord.quality === 'm7b5' ? 6 : 7;
     switch (role) {
       case 'R': return root;
       case '3': return root + third;
-      case '5': return root + 7;
+      case '5': return root + fifth;
       case '8': return root + 12;
       case '10': return root + 12 + third;
-      case '12': return root + 19;
+      case '12': return root + 12 + fifth;
       default: return root;
     }
   }
@@ -111,6 +150,26 @@
   }
 
   /**
+   * Index-based figures (arpeggios, Alberti, the 3-3-2) address voicing notes by
+   * position, so a pattern reaching only indices 0–2 would never sound the note
+   * parked at index 3 of a rich chord (m7, add9…). Reduce such voicings to their
+   * essential tones — drop the 5th first, then the root (the left hand owns it) —
+   * so the figure always carries the chord's identity, especially its third.
+   */
+  function reduceForIndices(voicing, chord, need) {
+    const keep = Math.max(need, 3);
+    if (voicing.length <= keep) return voicing;
+    const fifthPc = (chord.rootPc + (chord.quality === 'dim' || chord.quality === 'm7b5' ? 6 : 7)) % 12;
+    let out = voicing.filter((m) => m % 12 !== fifthPc);
+    if (out.length < keep) out = voicing;
+    if (out.length > keep) {
+      const noRoot = out.filter((m) => m % 12 !== chord.rootPc % 12);
+      if (noRoot.length >= keep) out = noRoot;
+    }
+    return out;
+  }
+
+  /**
    * Render one bar into playable events.
    * Returns [{ step, dur, midis, vel, hand }] — step/dur in 16th steps (step may be fractional after swing).
    */
@@ -118,47 +177,81 @@
     const events = [];
     const bar = barIndex % ctx.totalBars;
     const chorus = energy === 'chorus';
-
-    const resolveSeg = (s, useNext) => {
-      let idx = segmentAt(ctx, bar, Math.min(s, 15));
-      if (useNext) idx = nextSegmentIndex(ctx, idx);
-      return idx;
-    };
+    const split = barIsSplit(ctx, bar);
+    const seg1Idx = segIndexFor(ctx, bar, 0);
 
     // ---- left hand
+    // When the chord changes mid-bar, the first bass note under the new chord
+    // becomes its root (what a real player does), unless the pattern already
+    // lands on a root/octave there or is a deliberate pedal.
+    let lhRootedSeg2 = false;
     for (const ev of pattern.lh) {
-      const segIdx = resolveSeg(ev.s, ev.next);
-      const chord = ctx.segments[segIdx].chord;
-      let midis = ev.n.map((role) => T.lhRole(role, chord, ctx.tonic));
-      const doublable = midis.length === 1 && (ev.n[0] === 'R' || ev.n[0] === 'pedal') && midis[0] + 12 <= 58;
-      if (chorus && doublable) midis = [midis[0], midis[0] + 12];
-      midis = [...new Set(midis)];
-      events.push({ step: ev.s, dur: ev.d, midis, vel: ev.v != null ? ev.v : 0.72, hand: 'lh', next: !!ev.next });
+      for (const piece of placeEvent(ctx, bar, ev)) {
+        const chord = ctx.segments[piece.segIdx].chord;
+        let roles = ev.n;
+        if (
+          split &&
+          !ev.anticipate &&
+          !piece.intoNextBar &&
+          piece.segIdx !== seg1Idx &&
+          !lhRootedSeg2 &&
+          !roles.includes('pedal')
+        ) {
+          if (!roles.includes('R') && !roles.includes('8')) roles = ['R'];
+          lhRootedSeg2 = true;
+        }
+        let midis = roles.map((role) => T.lhRole(role, chord, ctx.tonic));
+        const doublable = midis.length === 1 && (roles[0] === 'R' || roles[0] === 'pedal') && midis[0] + 12 <= 58;
+        if (chorus && doublable) midis = [midis[0], midis[0] + 12];
+        midis = [...new Set(midis)];
+        const vel = (ev.v != null ? ev.v : 0.72) * (piece.reattack ? 0.85 : 1);
+        events.push({
+          step: piece.step,
+          dur: piece.dur,
+          midis,
+          vel,
+          hand: 'lh',
+          segIdx: piece.segIdx,
+          intoNextBar: !!piece.intoNextBar,
+          anticipate: !!ev.anticipate,
+        });
+      }
     }
 
     // ---- right hand
     for (const ev of pattern.rh) {
-      const segIdx = resolveSeg(ev.s, ev.next);
-      const chord = ctx.segments[segIdx].chord;
-      let midis;
-      if (ev.n === 'anchor') {
-        midis = anchorNotes(ctx.tonic);
-      } else if (ev.mod === 'sus4') {
-        midis = susVoicing(ctx, segIdx).slice();
-      } else {
-        const v = ctx.voicings[segIdx];
-        if (ev.n === 'chord') midis = v.slice();
-        else if (ev.n === 'shell') midis = [v[0], v[v.length - 1]];
-        else if (ev.n === 'top') midis = [v[v.length - 1]];
-        else if (Array.isArray(ev.n)) midis = pickIndices(v, ev.n);
-        else if (ev.n && ev.n.arp) midis = [arpNote(ev.n.arp, chord)];
-        else midis = v.slice();
+      for (const piece of placeEvent(ctx, bar, ev)) {
+        const chord = ctx.segments[piece.segIdx].chord;
+        let midis;
+        if (ev.n === 'anchor') {
+          midis = anchorNotes(ctx.tonic);
+        } else if (ev.mod === 'sus4') {
+          midis = susVoicing(ctx, piece.segIdx).slice();
+        } else {
+          const v = ctx.voicings[piece.segIdx];
+          if (ev.n === 'chord') midis = v.slice();
+          else if (ev.n === 'shell') midis = [v[0], v[v.length - 1]];
+          else if (ev.n === 'top') midis = [v[v.length - 1]];
+          else if (Array.isArray(ev.n)) midis = pickIndices(reduceForIndices(v, chord, Math.max(...ev.n) + 1), ev.n);
+          else if (ev.n && ev.n.arp) midis = [arpNote(ev.n.arp, chord)];
+          else midis = v.slice();
+        }
+        if (chorus && (ev.n === 'chord' || ev.mod === 'sus4')) {
+          const top = midis[midis.length - 1];
+          if (top + 12 <= 88) midis = [...midis, top + 12];
+        }
+        const vel = (ev.v != null ? ev.v : 0.7) * (piece.reattack ? 0.85 : 1);
+        events.push({
+          step: piece.step,
+          dur: piece.dur,
+          midis,
+          vel,
+          hand: 'rh',
+          segIdx: piece.segIdx,
+          intoNextBar: !!piece.intoNextBar,
+          anticipate: !!ev.anticipate,
+        });
       }
-      if (chorus && (ev.n === 'chord' || ev.mod === 'sus4')) {
-        const top = midis[midis.length - 1];
-        if (top + 12 <= 88) midis = [...midis, top + 12];
-      }
-      events.push({ step: ev.s, dur: ev.d, midis, vel: ev.v != null ? ev.v : 0.7, hand: 'rh', next: !!ev.next });
     }
 
     // ---- energy velocity shaping
@@ -168,9 +261,8 @@
     // ---- pedal: let notes ring to the end of their chord segment
     if (pattern.pedal === 'chord') {
       for (const ev of events) {
-        const segIdx = resolveSeg(Math.floor(ev.step), ev.next);
-        const seg = ctx.segments[segIdx];
-        const end = ev.next ? STEPS_PER_BAR + seg.end - seg.start : seg.end;
+        const seg = ctx.segments[ev.segIdx];
+        const end = ev.intoNextBar ? STEPS_PER_BAR + seg.end : seg.end;
         const ringTo = Math.max(ev.dur, end - ev.step);
         ev.dur = Math.min(ringTo, ev.dur + 12); // cap the wash
       }

@@ -291,6 +291,7 @@ input, select { font-family: inherit; color: inherit; }
 .kbd-legend .under-fingers { font-family: var(--mono); color: var(--ink-dim); letter-spacing: 0.02em; }
 .kbd-legend .under-fingers b.l { color: var(--lh); font-weight: 600; }
 .kbd-legend .under-fingers b.r { color: var(--rh); font-weight: 600; }
+.kbd-legend .under-fingers .inv { font-family: var(--serif); font-style: italic; color: var(--ink-faint); }
 
 /* rhythm map */
 .rmap-head {

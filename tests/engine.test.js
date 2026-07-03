@@ -29,15 +29,18 @@ for (const preset of A.PRESETS) {
   }
 }
 
-// Anticipation events resolve to the NEXT chord.
+// Anticipation events landing past the barline resolve to the NEXT chord.
 {
   const push = A.PATTERNS.find((p) => p.id === 'push');
   const ctx = E.buildContext('C | G', push);
   const events = E.renderBar(ctx, push, 0, 'verse');
-  const pushed = events.filter((e) => e.next);
-  assert.ok(pushed.length >= 2, 'push pattern should have next-chord events');
+  const pushed = events.filter((e) => e.anticipate && e.intoNextBar);
+  assert.ok(pushed.length >= 2, 'push pattern should have barline-crossing events');
   const lhPush = pushed.find((e) => e.hand === 'lh');
   assert.strictEqual(lhPush.midis[0] % 12, 7, 'pushed LH note should be G (next chord root)');
+  // the and-of-2 anticipation stays on the CURRENT chord in a one-chord bar
+  const mid = events.find((e) => e.anticipate && !e.intoNextBar && e.hand === 'rh');
+  assert.ok(mid.midis.every((m) => [0, 2, 4, 7].includes(m % 12)), 'and-of-2 should still be C-family in a solid bar');
 }
 
 // Last bar's anticipation wraps to the first chord.
@@ -45,8 +48,22 @@ for (const preset of A.PRESETS) {
   const push = A.PATTERNS.find((p) => p.id === 'push');
   const ctx = E.buildContext('C | G', push);
   const events = E.renderBar(ctx, push, 1, 'verse');
-  const lhPush = events.filter((e) => e.next).find((e) => e.hand === 'lh');
+  const lhPush = events.filter((e) => e.anticipate && e.intoNextBar).find((e) => e.hand === 'lh');
   assert.strictEqual(lhPush.midis[0] % 12, 0, 'wrap: pushed note should be C');
+}
+
+// In a split bar, the anticipated and-of-2 hit sounds the MID-BAR chord change.
+{
+  const push = A.PATTERNS.find((p) => p.id === 'push');
+  const ctx = E.buildContext('C Am | Dm G', push);
+  const events = E.renderBar(ctx, push, 0, 'verse');
+  const mid = events.find((e) => e.hand === 'rh' && e.step === 6);
+  const amPcs = new Set([9, 0, 4, 11]); // A C E + B (the pattern's add9 colour)
+  assert.ok(mid.midis.every((m) => amPcs.has(m % 12)), 'and-of-2 should anticipate Am(add9), got ' + mid.midis.map((m) => m % 12));
+  assert.ok(mid.midis.some((m) => m % 12 === 0), 'anticipated Am must contain its third (C)');
+  // and Am's root must sound in the bar (LH beat-3 echo)
+  const lhSeg2 = events.find((e) => e.hand === 'lh' && e.step === 8);
+  assert.strictEqual(lhSeg2.midis[0] % 12, 9, 'beat-3 LH should be A under the Am half');
 }
 
 // Anchor pattern: RH notes identical across different chords.
@@ -92,15 +109,30 @@ for (const preset of A.PRESETS) {
   assert.ok(offbeat, 'swing should delay the and-of-2 to ~6.66 steps');
 }
 
-// Two chords in a bar: second half uses the second chord.
+// Two chords in a bar: second half uses the second chord, and the first bass
+// note under the new chord becomes its ROOT (the split-bar root rule).
 {
   const qp = A.PATTERNS.find((p) => p.id === 'quarter-pulse');
   const ctx = E.buildContext('C G | Am F', qp);
   assert.strictEqual(ctx.segments.length, 4);
   const ev = E.renderBar(ctx, qp, 0, 'verse');
   const beat3lh = ev.find((e) => e.hand === 'lh' && e.step === 8);
-  // fifth of G = D
-  assert.strictEqual(beat3lh.midis[0] % 12, 2, 'beat 3 LH should be D (fifth of G)');
+  assert.strictEqual(beat3lh.midis[0] % 12, 7, 'beat 3 LH should be G (root of the new chord)');
+  const beat3rh = ev.find((e) => e.hand === 'rh' && e.step === 8);
+  const gPcs = new Set([7, 11, 2]);
+  assert.ok(beat3rh.midis.every((m) => gPcs.has(m % 12)), 'beat 3 RH should be a G chord');
+}
+
+// Whole notes over a split bar get re-attacked on the mid-bar chord change.
+{
+  const bedrock = A.PATTERNS.find((p) => p.id === 'bedrock');
+  const ctx = E.buildContext('C Am | Dm G', bedrock);
+  const ev = E.renderBar(ctx, bedrock, 0, 'verse');
+  const reattacks = ev.filter((e) => e.step === 8);
+  assert.ok(reattacks.some((e) => e.hand === 'lh') && reattacks.some((e) => e.hand === 'rh'), 'bedrock should re-attack both hands at beat 3');
+  const rh = reattacks.find((e) => e.hand === 'rh');
+  const amPcs = new Set([9, 0, 4]);
+  assert.ok(rh.midis.every((m) => amPcs.has(m % 12)), 're-attack should voice Am');
 }
 
 // Sus4 mod produces a different voicing that contains the 4th.
