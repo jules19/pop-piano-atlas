@@ -1,0 +1,2649 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Pop Piano Atlas — every way to play the chords you know</title>
+  <style>
+/* Pop Piano Atlas — stage-dark, editorial. */
+
+:root {
+  --bg: #0d1015;
+  --bg-raise: #141922;
+  --bg-card: #171d28;
+  --bg-card-hover: #1d2432;
+  --line: #232c3b;
+  --line-soft: #1b2230;
+  --ink: #ece7db;
+  --ink-dim: #a49d8f;
+  --ink-faint: #6d675c;
+  --rh: #f2a35c;      /* right hand — amber */
+  --rh-soft: #f2a35c33;
+  --lh: #5cb8f2;      /* left hand — sky */
+  --lh-soft: #5cb8f233;
+  --accent: #f2a35c;
+  --good: #7fd68a;
+  --bad: #e4726d;
+  --radius: 10px;
+  --serif: 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, serif;
+  --sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  --mono: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--sans);
+  font-size: 15px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+body {
+  min-height: 100vh;
+  background:
+    radial-gradient(1200px 500px at 75% -10%, #1a2233cc 0%, transparent 60%),
+    radial-gradient(900px 400px at 10% 110%, #16202baa 0%, transparent 60%),
+    var(--bg);
+}
+
+button { font-family: inherit; color: inherit; cursor: pointer; }
+input, select { font-family: inherit; color: inherit; }
+
+::selection { background: var(--rh-soft); }
+
+/* ---------------------------------------------------------------- header */
+
+.top {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding: 14px 22px 10px;
+  flex-wrap: wrap;
+}
+
+.brand { display: flex; align-items: baseline; gap: 12px; margin-right: auto; }
+.brand h1 {
+  font-family: var(--serif);
+  font-weight: 600;
+  font-size: 22px;
+  letter-spacing: 0.2px;
+}
+.brand h1 .atlas { color: var(--accent); font-style: italic; }
+.brand .tagline {
+  color: var(--ink-dim);
+  font-size: 13px;
+  font-style: italic;
+  font-family: var(--serif);
+}
+
+/* transport */
+.transport { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+
+.play-btn {
+  width: 46px; height: 46px;
+  border-radius: 50%;
+  border: 1px solid var(--line);
+  background: linear-gradient(160deg, #222b3a, #161c27);
+  display: grid; place-items: center;
+  transition: transform 0.08s ease, box-shadow 0.2s ease, border-color 0.2s;
+  flex: none;
+}
+.play-btn:hover { border-color: var(--accent); box-shadow: 0 0 18px #f2a35c2e; }
+.play-btn:active { transform: scale(0.95); }
+.play-btn svg { width: 17px; height: 17px; fill: var(--ink); }
+.play-btn.playing svg { fill: var(--accent); }
+
+.ctl {
+  display: flex; flex-direction: column; gap: 2px; align-items: stretch;
+}
+.ctl label {
+  font-size: 10px; text-transform: uppercase; letter-spacing: 0.12em;
+  color: var(--ink-faint); text-align: center;
+}
+
+.tempo-wrap { display: flex; align-items: center; gap: 8px; }
+.tempo-wrap input[type='range'] {
+  width: 110px; accent-color: var(--accent); background: transparent;
+}
+.bpm { font-family: var(--mono); font-size: 13px; color: var(--ink-dim); min-width: 56px; text-align: right; }
+
+.seg {
+  display: flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden;
+  background: var(--bg-raise);
+}
+.seg button {
+  padding: 6px 12px; font-size: 12.5px; background: transparent; border: 0;
+  color: var(--ink-dim); transition: background 0.15s, color 0.15s;
+  border-right: 1px solid var(--line-soft);
+}
+.seg button:last-child { border-right: 0; }
+.seg button.on { background: #2a3140; color: var(--ink); }
+.seg.energy button.on { color: var(--accent); }
+.seg.hands button.on:nth-child(2) { color: var(--lh); }
+.seg.hands button.on:nth-child(3) { color: var(--rh); }
+
+.toggle {
+  padding: 6px 11px; font-size: 12.5px; border: 1px solid var(--line);
+  border-radius: 8px; background: var(--bg-raise); color: var(--ink-dim);
+  transition: color 0.15s, border-color 0.15s;
+}
+.toggle.on { color: var(--ink); border-color: var(--accent); }
+
+.midi-btn {
+  padding: 7px 13px; font-size: 12.5px; border: 1px solid var(--line);
+  border-radius: 8px; background: var(--bg-raise); color: var(--ink-dim);
+}
+.midi-btn:hover { color: var(--ink); border-color: var(--ink-dim); }
+
+/* ---------------------------------------------------------------- progression strip */
+
+.prog-strip {
+  margin: 6px 22px 14px;
+  padding: 14px 16px;
+  background: var(--bg-raise);
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius);
+  display: flex; flex-direction: column; gap: 12px;
+}
+
+.prog-row1 { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+
+.prog-row1 select {
+  background: var(--bg-card); border: 1px solid var(--line); border-radius: 8px;
+  padding: 7px 10px; font-size: 13px; max-width: 240px;
+}
+.prog-input {
+  flex: 1; min-width: 220px;
+  background: var(--bg-card); border: 1px solid var(--line); border-radius: 8px;
+  padding: 8px 12px; font-size: 14.5px; font-family: var(--mono); letter-spacing: 0.03em;
+}
+.prog-input:focus { outline: none; border-color: var(--accent); }
+.prog-input.invalid { border-color: var(--bad); }
+
+.prog-hint { font-size: 12px; color: var(--ink-faint); }
+.prog-hint.error { color: var(--bad); }
+
+.transpose { display: flex; align-items: center; gap: 4px; }
+.transpose button {
+  width: 28px; height: 28px; border-radius: 7px; border: 1px solid var(--line);
+  background: var(--bg-card); color: var(--ink-dim); font-size: 15px; line-height: 1;
+}
+.transpose button:hover { color: var(--ink); border-color: var(--ink-dim); }
+.key-badge {
+  font-size: 12.5px; color: var(--ink-dim); padding: 0 6px; white-space: nowrap;
+}
+.key-badge b { color: var(--ink); font-family: var(--serif); font-size: 14px; }
+
+.bars {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(88px, 1fr));
+  gap: 8px;
+}
+.bar-chip {
+  padding: 8px 12px 7px;
+  background: var(--bg-card); border: 1px solid var(--line-soft); border-radius: 8px;
+  text-align: center; transition: border-color 0.1s, background 0.1s, box-shadow 0.1s;
+}
+.bar-chip .sym { font-family: var(--serif); font-size: 17px; letter-spacing: 0.02em; }
+.bar-chip .rn { font-size: 11px; color: var(--ink-faint); margin-top: 1px; font-style: italic; }
+.bar-chip.now {
+  border-color: var(--accent); background: #221f1a;
+  box-shadow: 0 0 14px #f2a35c22;
+}
+.bar-chip.now .rn { color: var(--accent); }
+
+/* ---------------------------------------------------------------- main layout */
+
+.main {
+  display: grid;
+  grid-template-columns: 372px 1fr;
+  gap: 16px;
+  padding: 0 22px 24px;
+  align-items: start;
+}
+
+/* ---- deck */
+.deck {
+  max-height: calc(100vh - 210px);
+  overflow-y: auto;
+  padding-right: 6px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--line) transparent;
+}
+.deck::-webkit-scrollbar { width: 8px; }
+.deck::-webkit-scrollbar-thumb { background: var(--line); border-radius: 4px; }
+
+.group-head { margin: 18px 2px 8px; }
+.deck .group-head:first-child { margin-top: 2px; }
+.group-head h2 {
+  font-family: var(--serif); font-size: 15px; font-weight: 600; letter-spacing: 0.04em;
+  color: var(--ink);
+}
+.group-head p { font-size: 12px; color: var(--ink-faint); margin-top: 1px; }
+
+.card {
+  width: 100%;
+  text-align: left;
+  background: var(--bg-card);
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius);
+  padding: 11px 13px 10px;
+  margin-bottom: 8px;
+  transition: background 0.12s, border-color 0.12s, transform 0.08s;
+  position: relative;
+}
+.card:hover { background: var(--bg-card-hover); border-color: var(--line); }
+.card:active { transform: scale(0.99); }
+.card.selected {
+  border-color: var(--accent);
+  background: linear-gradient(160deg, #20211f, #191d26);
+  box-shadow: 0 0 20px #f2a35c1c;
+}
+.card.queued { border-color: var(--ink-dim); border-style: dashed; }
+
+.card-top { display: flex; align-items: baseline; gap: 8px; }
+.card-name { font-family: var(--serif); font-size: 15.5px; font-weight: 600; }
+.card.selected .card-name { color: var(--accent); }
+.card-dots { margin-left: auto; font-size: 10px; letter-spacing: 2px; color: var(--ink-faint); flex: none; }
+.card-dots .f { color: var(--ink-dim); }
+.card-tag { font-size: 12px; color: var(--ink-dim); margin: 2px 0 7px; line-height: 1.4; }
+
+.card-glyph { display: flex; flex-direction: column; gap: 3px; }
+.glyph-row { position: relative; height: 7px; border-radius: 3px; background: #0e121a; overflow: hidden; }
+.glyph-row span { position: absolute; top: 1px; bottom: 1px; border-radius: 2px; }
+.glyph-row.rh span { background: var(--rh); }
+.glyph-row.lh span { background: var(--lh); }
+
+.badge {
+  font-size: 9.5px; text-transform: uppercase; letter-spacing: 0.1em;
+  padding: 2px 6px; border-radius: 4px; background: #262c38; color: var(--ink-dim);
+  flex: none;
+}
+.badge.swing { color: var(--rh); }
+.badge.queued-label { color: var(--ink); }
+
+/* ---- stage (right panel) */
+.stage { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+
+.panel {
+  background: var(--bg-raise);
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius);
+  padding: 16px 18px;
+}
+
+.stage-head { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; margin-bottom: 4px; }
+.stage-head h2 { font-family: var(--serif); font-size: 24px; font-weight: 600; }
+.stage-head .tag { color: var(--ink-dim); font-size: 13.5px; font-style: italic; font-family: var(--serif); }
+.stage-meta { display: flex; gap: 8px; margin-left: auto; align-items: center; }
+
+/* keyboard */
+.kbd-wrap { padding: 10px 6px 4px; }
+.kbd { width: 100%; display: block; }
+.kbd .white { fill: #e9e4d8; stroke: #0d1015; stroke-width: 1; }
+.kbd .black { fill: #171b22; stroke: #0d1015; stroke-width: 1; }
+.kbd .white.lit-lh { fill: var(--lh); }
+.kbd .white.lit-rh { fill: var(--rh); }
+.kbd .black.lit-lh { fill: #7ec8f7; }
+.kbd .black.lit-rh { fill: #f7bc7e; }
+.kbd.preview .white.lit-lh, .kbd.preview .black.lit-lh { fill: #3d7ba6; }
+.kbd.preview .white.lit-rh, .kbd.preview .black.lit-rh { fill: #b57a45; }
+.kbd-legend { display: flex; gap: 18px; justify-content: center; padding: 8px 0 2px; font-size: 11.5px; color: var(--ink-faint); }
+.kbd-legend .sw { display: inline-block; width: 9px; height: 9px; border-radius: 2px; margin-right: 5px; vertical-align: -1px; }
+.kbd-legend .sw.lh { background: var(--lh); }
+.kbd-legend .sw.rh { background: var(--rh); }
+.kbd-legend .under-fingers { font-family: var(--mono); color: var(--ink-dim); letter-spacing: 0.02em; }
+.kbd-legend .under-fingers b.l { color: var(--lh); font-weight: 600; }
+.kbd-legend .under-fingers b.r { color: var(--rh); font-weight: 600; }
+
+/* rhythm map */
+.rmap-head {
+  display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 10px;
+  gap: 12px; flex-wrap: wrap;
+}
+.rmap-head h3, .learn h3 {
+  font-size: 11px; text-transform: uppercase; letter-spacing: 0.14em; color: var(--ink-faint);
+  font-weight: 600;
+}
+.rmap { position: relative; }
+.rmap-rows { display: flex; flex-direction: column; gap: 6px; }
+.rmap-row { display: flex; align-items: center; gap: 10px; }
+.rmap-row .lbl { width: 26px; font-size: 11px; color: var(--ink-faint); font-family: var(--mono); text-align: right; flex: none; }
+.rmap-row .lbl.rh { color: var(--rh); }
+.rmap-row .lbl.lh { color: var(--lh); }
+.rmap-lane {
+  position: relative; flex: 1; height: 30px;
+  background: #0e121a; border-radius: 6px; overflow: hidden;
+}
+.rmap-lane .beatline { position: absolute; top: 0; bottom: 0; width: 1px; background: #232b39; }
+.rmap-lane .beatline.strong { background: #2f3a4d; }
+.rmap-lane .hit {
+  position: absolute; top: 4px; bottom: 4px; border-radius: 4px; min-width: 5px;
+}
+.rmap-lane .hit.rh { background: var(--rh); }
+.rmap-lane .hit.lh { background: var(--lh); }
+.rmap-count { display: flex; margin-left: 36px; }
+.rmap-count span { flex: 1; font-size: 10px; color: var(--ink-faint); font-family: var(--mono); }
+.rmap-count span.b { color: var(--ink-dim); }
+.rmap-playhead {
+  position: absolute; top: 0; bottom: 0; width: 2px;
+  background: var(--ink); opacity: 0; border-radius: 1px;
+  pointer-events: none;
+}
+
+/* learn panel */
+.learn { display: grid; grid-template-columns: 1fr 1fr; gap: 18px 26px; }
+.learn h3 { margin-bottom: 6px; }
+.learn .block p { font-size: 13.5px; color: var(--ink-dim); line-height: 1.55; }
+.learn .block p b { color: var(--ink); font-weight: 600; }
+.hand-lines { display: flex; flex-direction: column; gap: 8px; }
+.hand-line { display: flex; gap: 10px; align-items: baseline; }
+.hand-line .hl {
+  font-family: var(--mono); font-size: 11px; padding: 2px 7px; border-radius: 4px; flex: none;
+}
+.hand-line .hl.rh { color: var(--rh); background: var(--rh-soft); }
+.hand-line .hl.lh { color: var(--lh); background: var(--lh-soft); }
+.hand-line p { font-size: 13.5px; color: var(--ink-dim); }
+.songs-list { list-style: none; }
+.songs-list li {
+  font-size: 13.5px; color: var(--ink-dim); padding: 2px 0 2px 16px; position: relative;
+}
+.songs-list li::before { content: '♪'; position: absolute; left: 0; color: var(--accent); font-size: 12px; }
+.tip-box {
+  grid-column: 1 / -1;
+  border-left: 3px solid var(--accent);
+  background: #1a1c20;
+  padding: 10px 14px;
+  border-radius: 0 8px 8px 0;
+  font-size: 13.5px; color: var(--ink-dim);
+}
+.tip-box b { color: var(--accent); font-style: italic; font-family: var(--serif); }
+
+/* footer */
+.foot {
+  padding: 4px 24px 18px;
+  font-size: 12px; color: var(--ink-faint); text-align: center;
+}
+.foot kbd {
+  font-family: var(--mono); font-size: 11px; background: var(--bg-card);
+  border: 1px solid var(--line); border-radius: 4px; padding: 1px 6px;
+}
+
+/* ---------------------------------------------------------------- responsive */
+
+@media (max-width: 960px) {
+  .main { grid-template-columns: 1fr; }
+  .deck { max-height: none; order: 2; }
+  .stage { order: 1; }
+  .brand .tagline { display: none; }
+}
+
+</style>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ctext y='24' font-size='24'%3E🎹%3C/text%3E%3C/svg%3E" />
+</head>
+<body>
+
+  <header class="top">
+    <div class="brand">
+      <h1>Pop Piano <span class="atlas">Atlas</span></h1>
+      <span class="tagline">You know the chords. Now learn every way to play them.</span>
+    </div>
+
+    <div class="transport">
+      <button id="play" class="play-btn" title="Play / stop (Space)" aria-label="Play">
+        <svg viewBox="0 0 16 16"><path id="play-icon" d="M4 2l10 6-10 6z"/></svg>
+      </button>
+
+      <div class="ctl">
+        <label>Tempo</label>
+        <div class="tempo-wrap">
+          <input id="tempo" type="range" min="48" max="176" value="84" />
+          <span class="bpm" id="bpm">84 bpm</span>
+        </div>
+      </div>
+
+      <div class="ctl">
+        <label>Energy</label>
+        <div class="seg energy" id="energy">
+          <button data-v="verse" class="on">Verse</button>
+          <button data-v="chorus">Chorus</button>
+        </div>
+      </div>
+
+      <div class="ctl">
+        <label>Hands</label>
+        <div class="seg hands" id="hands">
+          <button data-v="both" class="on">Both</button>
+          <button data-v="lh">Left</button>
+          <button data-v="rh">Right</button>
+        </div>
+      </div>
+
+      <div class="ctl">
+        <label>Practice</label>
+        <div style="display:flex; gap:6px">
+          <button id="metro" class="toggle" title="Metronome click">Click</button>
+          <button id="countin" class="toggle" title="One bar of count-in before playback">Count-in</button>
+        </div>
+      </div>
+
+      <div class="ctl">
+        <label>Take it away</label>
+        <button id="midi" class="midi-btn" title="Download exactly what you hear as a MIDI file">↓ MIDI</button>
+      </div>
+    </div>
+  </header>
+
+  <section class="prog-strip">
+    <div class="prog-row1">
+      <select id="preset" title="Progression presets"></select>
+      <input id="prog" class="prog-input" spellcheck="false" autocomplete="off"
+             placeholder="C | G | Am | F   —   bars split by |, two chords a bar allowed" />
+      <div class="transpose">
+        <button id="tr-down" title="Transpose down a semitone">−</button>
+        <button id="tr-up" title="Transpose up a semitone">+</button>
+      </div>
+      <span class="key-badge" id="keybadge"></span>
+    </div>
+    <div class="bars" id="bars"></div>
+    <div class="prog-hint" id="proghint">Type any chords — triads, m7, sus2/4, add9, slash bass like G/B — then press Enter.</div>
+  </section>
+
+  <main class="main">
+    <nav class="deck" id="deck" aria-label="Accompaniment patterns"></nav>
+
+    <section class="stage">
+      <div class="panel">
+        <div class="stage-head">
+          <h2 id="pat-name">—</h2>
+          <span class="tag" id="pat-tag"></span>
+          <div class="stage-meta" id="pat-meta"></div>
+        </div>
+        <div class="kbd-wrap">
+          <svg id="kbd" class="kbd" preserveAspectRatio="none"></svg>
+          <div class="kbd-legend">
+            <span><span class="sw lh"></span>left hand</span>
+            <span><span class="sw rh"></span>right hand</span>
+            <span class="under-fingers" id="under-fingers"></span>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="rmap-head">
+          <h3>One bar, under the microscope</h3>
+          <span class="prog-hint" id="rmap-note"></span>
+        </div>
+        <div class="rmap" id="rmap">
+          <div class="rmap-rows">
+            <div class="rmap-row"><span class="lbl rh">RH</span><div class="rmap-lane" id="lane-rh"></div></div>
+            <div class="rmap-row"><span class="lbl lh">LH</span><div class="rmap-lane" id="lane-lh"></div></div>
+          </div>
+          <div class="rmap-count" id="rmap-count"></div>
+          <div class="rmap-playhead" id="rmap-ph"></div>
+        </div>
+      </div>
+
+      <div class="panel learn" id="learn">
+        <div class="block">
+          <h3>Your hands</h3>
+          <div class="hand-lines">
+            <div class="hand-line"><span class="hl lh">LH</span><p id="how-lh"></p></div>
+            <div class="hand-line"><span class="hl rh">RH</span><p id="how-rh"></p></div>
+          </div>
+        </div>
+        <div class="block">
+          <h3>Why it works</h3>
+          <p id="why"></p>
+        </div>
+        <div class="block">
+          <h3>Reach for it when</h3>
+          <p id="use"></p>
+        </div>
+        <div class="block">
+          <h3>Hear it in</h3>
+          <ul class="songs-list" id="songs"></ul>
+        </div>
+        <div class="tip-box"><b>Practice tip · </b><span id="tip"></span></div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="foot">
+    <kbd>Space</kbd> play / stop &nbsp;·&nbsp; <kbd>←</kbd><kbd>→</kbd> flip through patterns while the loop plays &nbsp;·&nbsp; pattern swaps land on the next barline, so the music never stops
+  </footer>
+
+  <script>
+/* Pop Piano Atlas — theory core
+ * Chord parsing, key/roman-numeral analysis, and the voicing engine.
+ * Plain script (no modules) so it runs in the browser and in node tests alike.
+ */
+(function () {
+  'use strict';
+
+  const PC_FROM_LETTER = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 };
+  const SHARP_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+  const FLAT_NAMES = ['C', 'Db', 'D', 'Eb', 'E', 'F', 'Gb', 'G', 'Ab', 'A', 'Bb', 'B'];
+
+  // Chord qualities → intervals in semitones from the root.
+  // Order matters for parsing: longest suffixes first.
+  const QUALITIES = [
+    ['maj9', [0, 4, 7, 11, 14]],
+    ['maj7', [0, 4, 7, 11]],
+    ['madd9', [0, 3, 7, 14]],
+    ['add9', [0, 4, 7, 14]],
+    ['m7b5', [0, 3, 6, 10]],
+    ['dim7', [0, 3, 6, 9]],
+    ['sus2', [0, 2, 7]],
+    ['sus4', [0, 5, 7]],
+    ['sus', [0, 5, 7]],
+    ['dim', [0, 3, 6]],
+    ['aug', [0, 4, 8]],
+    ['m9', [0, 3, 7, 10, 14]],
+    ['m7', [0, 3, 7, 10]],
+    ['m6', [0, 3, 7, 9]],
+    ['6', [0, 4, 7, 9]],
+    ['9', [0, 4, 7, 10, 14]],
+    ['7', [0, 4, 7, 10]],
+    ['5', [0, 7]],
+    ['m', [0, 3, 7]],
+    ['', [0, 4, 7]],
+  ];
+  const QUALITY_MAP = Object.fromEntries(QUALITIES);
+
+  function parseNoteName(s) {
+    const m = /^([A-Ga-g])([#b♯♭]?)/.exec(s);
+    if (!m) return null;
+    let pc = PC_FROM_LETTER[m[1].toUpperCase()];
+    if (m[2] === '#' || m[2] === '♯') pc = (pc + 1) % 12;
+    if (m[2] === 'b' || m[2] === '♭') pc = (pc + 11) % 12;
+    return { pc, consumed: m[0].length };
+  }
+
+  /** Parse a chord symbol like "C", "Am7", "Fsus2", "G/B", "Bbadd9". Returns null if invalid. */
+  function parseChord(symbol) {
+    const raw = symbol.trim();
+    if (!raw) return null;
+    let s = raw;
+    let bassPc = null;
+    const slash = s.lastIndexOf('/');
+    if (slash > 0) {
+      const bass = parseNoteName(s.slice(slash + 1));
+      if (!bass || bass.consumed !== s.length - slash - 1) return null;
+      bassPc = bass.pc;
+      s = s.slice(0, slash);
+    }
+    const root = parseNoteName(s);
+    if (!root) return null;
+    let rest = s.slice(root.consumed);
+    // normalise a few aliases
+    rest = rest.replace(/^min/, 'm').replace(/^-/, 'm').replace(/^M7/, 'maj7').replace(/^Δ7?/, 'maj7');
+    if (!(rest in QUALITY_MAP)) return null;
+    const intervals = QUALITY_MAP[rest];
+    const isMinor = /^m(?!aj)/.test(rest) || rest === 'dim' || rest === 'dim7' || rest === 'm7b5';
+    return {
+      symbol: raw,
+      rootPc: root.pc,
+      quality: rest === '' ? 'maj' : rest,
+      intervals,
+      isMinor,
+      bassPc: bassPc == null ? root.pc : bassPc,
+      hasSlash: bassPc != null && bassPc !== root.pc,
+      pcs: intervals.map((i) => (root.pc + i) % 12),
+    };
+  }
+
+  /** Parse a progression string: bars separated by "|" or newlines; chords in a bar by spaces. */
+  function parseProgression(text) {
+    const cells = text
+      .split(/[|\n]/)
+      .map((c) => c.trim())
+      .filter((c) => c.length > 0);
+    if (cells.length === 0) return { ok: false, error: 'Enter at least one chord.' };
+    const bars = [];
+    for (const cell of cells) {
+      const tokens = cell.split(/\s+/).filter(Boolean);
+      if (tokens.length > 2) {
+        return { ok: false, error: `"${cell}": max two chords per bar for now.` };
+      }
+      const chords = [];
+      for (const t of tokens) {
+        const ch = parseChord(t);
+        if (!ch) return { ok: false, error: `Couldn't read "${t}" as a chord.` };
+        chords.push(ch);
+      }
+      bars.push(chords);
+    }
+    if (bars.length > 16) return { ok: false, error: 'Max 16 bars — keep it loopable.' };
+    return { ok: true, bars };
+  }
+
+  // ---------------------------------------------------------------- key analysis
+
+  const MAJOR_SCALE = [0, 2, 4, 5, 7, 9, 11];
+  const DIATONIC_QUALITY = ['maj', 'min', 'min', 'maj', 'maj', 'min', 'dim']; // triads on each degree
+
+  /** Guess the major key (tonic pc) that best explains a list of chords. */
+  function detectKey(chords) {
+    let best = { tonic: 0, score: -Infinity };
+    for (let tonic = 0; tonic < 12; tonic++) {
+      let score = 0;
+      chords.forEach((ch, idx) => {
+        const deg = MAJOR_SCALE.indexOf((ch.rootPc - tonic + 12) % 12);
+        if (deg >= 0) {
+          score += 2;
+          const q = ch.isMinor ? 'min' : ch.quality === 'dim' || ch.quality === 'm7b5' ? 'dim' : 'maj';
+          if (
+            (DIATONIC_QUALITY[deg] === 'min' && q === 'min') ||
+            (DIATONIC_QUALITY[deg] === 'maj' && q === 'maj') ||
+            (DIATONIC_QUALITY[deg] === 'dim' && q === 'dim')
+          ) {
+            score += 2;
+          }
+          if (deg === 0 && !ch.isMinor) score += (idx === 0 ? 3 : 1); // tonic chord, esp. first
+          if (deg === 4) score += 1; // dominant presence
+        }
+        // every non-diatonic root costs a little
+        else score -= 1;
+      });
+      if (score > best.score) best = { tonic, score };
+    }
+    return best.tonic;
+  }
+
+  const DEGREE_ROMAN = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII'];
+
+  /** Roman numeral for a chord in a major key. Handles borrowed roots with ♭/♯. */
+  function romanNumeral(chord, tonicPc) {
+    const rel = (chord.rootPc - tonicPc + 12) % 12;
+    let deg = MAJOR_SCALE.indexOf(rel);
+    let accidental = '';
+    if (deg < 0) {
+      // try flattened degree (e.g. bVII, bIII, bVI)
+      deg = MAJOR_SCALE.indexOf((rel + 1) % 12);
+      if (deg >= 0) accidental = '♭';
+      else {
+        deg = MAJOR_SCALE.indexOf((rel + 11) % 12);
+        if (deg >= 0) accidental = '♯';
+        else return '?';
+      }
+    }
+    let numeral = DEGREE_ROMAN[deg];
+    if (chord.isMinor) numeral = numeral.toLowerCase();
+    let suffix = '';
+    if (chord.quality === 'dim' || chord.quality === 'dim7') suffix = '°';
+    else if (chord.quality === 'm7b5') suffix = 'ø';
+    else if (/7|9/.test(chord.quality) && chord.quality !== 'add9' && chord.quality !== 'madd9') suffix = '⁷';
+    else if (/^sus/.test(chord.quality)) suffix = 'ˢᵘˢ';
+    return accidental + numeral + suffix;
+  }
+
+  function keyName(tonicPc) {
+    // prefer flat spelling for flat-side keys
+    const flatKeys = [1, 3, 5, 8, 10];
+    return (flatKeys.includes(tonicPc) ? FLAT_NAMES : SHARP_NAMES)[tonicPc];
+  }
+
+  function midiToName(midi) {
+    return SHARP_NAMES[midi % 12] + (Math.floor(midi / 12) - 1);
+  }
+
+  function transposeSymbol(symbol, semitones) {
+    const ch = parseChord(symbol);
+    if (!ch) return symbol;
+    const useFlats = /b/.test(symbol) && !/#/.test(symbol);
+    const names = useFlats ? FLAT_NAMES : SHARP_NAMES;
+    const renote = (pc, orig) => {
+      const parsed = parseNoteName(orig);
+      return names[(parsed.pc + semitones + 1200) % 12] + orig.slice(parsed.consumed);
+    };
+    const slash = symbol.lastIndexOf('/');
+    if (slash > 0 && ch.hasSlash) {
+      return renote(null, symbol.slice(0, slash)) + '/' + renote(null, symbol.slice(slash + 1));
+    }
+    return renote(null, symbol);
+  }
+
+  // ---------------------------------------------------------------- voicing engine
+
+  const RENDER = {
+    lhLow: 32, // E1 floor
+    lhTargetRoot: 40, // aim roots near E2..E3
+    lhHigh: 55,
+    rhLow: 55, // G3 floor — mud guard
+    rhHigh: 84, // C6 ceiling
+    rhTopMin: 64, // top voice at least E4
+    rhTopMax: 81, // top voice at most A5
+  };
+
+  /** Place a pitch class in the LH bass register, near a target midi. */
+  function bassMidi(pc, target) {
+    target = target || 43;
+    let m = pc + 24; // start at C1 octave
+    let best = m,
+      bestDist = Infinity;
+    for (; m <= 60; m += 12) {
+      const d = Math.abs(m - target);
+      if (d < bestDist) {
+        best = m;
+        bestDist = d;
+      }
+    }
+    return Math.max(best, RENDER.lhLow - 3);
+  }
+
+  /**
+   * Voice a chord for the right hand with minimal movement from the previous voicing.
+   * `color`: null | 'add9' | 'sus2' — stylistic colour applied when the chord is a plain triad.
+   * Returns ascending midi array (3–4 notes).
+   */
+  function voiceChord(chord, prevVoicing, color) {
+    let pcs = chord.intervals.slice();
+    const isPlainTriad = chord.quality === 'maj' || chord.quality === 'm';
+    if (color === 'add9' && isPlainTriad) pcs = [...pcs, 14];
+    if (color === 'sus2' && isPlainTriad) pcs = pcs.map((i) => (i === 4 || i === 3 ? 2 : i));
+    // absolute pitch classes
+    const notePcs = [...new Set(pcs.map((i) => (chord.rootPc + i) % 12))];
+
+    // candidate voicings: each pc placed in every octave within range, then choose a
+    // stacked combination via rotation of the sorted pc set.
+    const sorted = notePcs.slice().sort((a, b) => a - b);
+    const candidates = [];
+    for (let rot = 0; rot < sorted.length; rot++) {
+      const order = [...sorted.slice(rot), ...sorted.slice(0, rot)];
+      for (let baseOct = 3; baseOct <= 5; baseOct++) {
+        let prev = -1;
+        const v = [];
+        let base = order[0] + 12 * (baseOct + 1);
+        for (const pc of order) {
+          let m = pc + 12 * (baseOct + 1);
+          while (m <= prev) m += 12;
+          v.push(m);
+          prev = m;
+        }
+        // shift the whole voicing so it sits in range
+        while (v[0] < RENDER.rhLow) for (let i = 0; i < v.length; i++) v[i] += 12;
+        while (v[v.length - 1] > RENDER.rhHigh) for (let i = 0; i < v.length; i++) v[i] -= 12;
+        if (v[0] < RENDER.rhLow) continue;
+        const top = v[v.length - 1];
+        if (top < RENDER.rhTopMin || top > RENDER.rhTopMax) continue;
+        if (v[v.length - 1] - v[0] > 14) continue; // hand span guard (max a 9th)
+        candidates.push(v);
+      }
+    }
+    if (candidates.length === 0) {
+      // fallback: root position around C4
+      const v = notePcs
+        .slice()
+        .sort((a, b) => a - b)
+        .map((pc, i) => pc + 60 + (pc < notePcs[0] ? 12 : 0));
+      return v.sort((a, b) => a - b);
+    }
+    // score: minimal movement from prev, centered near C5-top, avoid semitone clusters at bottom
+    const score = (v) => {
+      let s = 0;
+      if (prevVoicing && prevVoicing.length) {
+        for (const n of v) {
+          let d = Infinity;
+          for (const p of prevVoicing) d = Math.min(d, Math.abs(n - p));
+          s -= d;
+        }
+        // keep top voice movement small — the ear tracks it
+        s -= Math.abs(v[v.length - 1] - prevVoicing[prevVoicing.length - 1]) * 1.5;
+      } else {
+        s -= Math.abs(v[v.length - 1] - 72) * 1.2; // first chord: top near C5
+      }
+      if (v[1] - v[0] <= 2 && v[0] < 60) s -= 4; // low seconds are muddy
+      return s;
+    };
+    candidates.sort((a, b) => score(b) - score(a));
+    // dedupe identical
+    return candidates[0];
+  }
+
+  /** Resolve a left-hand role token to midi notes for a chord.
+   *  Roles: 'R' root · '5' fifth · '8' octave · '10' tenth · '3','6' chordal steps ·
+   *  'pedal' key tonic · '5-' fifth below root
+   */
+  function lhRole(role, chord, keyTonicPc) {
+    const rootM = bassMidi(chord.bassPc, RENDER.lhTargetRoot + 2);
+    const third = chord.isMinor ? 3 : 4;
+    switch (role) {
+      case 'R':
+        return rootM;
+      case '5': {
+        const fifth = chord.quality === 'dim' || chord.quality === 'm7b5' ? 6 : 7;
+        return rootM + fifth;
+      }
+      case '5-':
+        return rootM - 5; // fifth below = fourth down
+      case '8':
+        return rootM + 12;
+      case '3':
+        return rootM + third;
+      case '6':
+        return rootM + 9;
+      case 'b7':
+        return rootM + 10;
+      case '10':
+        return rootM + 12 + third;
+      case 'pedal':
+        return bassMidi(keyTonicPc, RENDER.lhTargetRoot);
+      default:
+        return rootM;
+    }
+  }
+
+  const Theory = {
+    parseChord,
+    parseProgression,
+    detectKey,
+    romanNumeral,
+    keyName,
+    midiToName,
+    transposeSymbol,
+    voiceChord,
+    lhRole,
+    bassMidi,
+    RENDER,
+    SHARP_NAMES,
+    FLAT_NAMES,
+  };
+
+  if (typeof module !== 'undefined' && module.exports) module.exports = Theory;
+  else window.Theory = Theory;
+})();
+
+</script>
+  <script>
+/* Pop Piano Atlas — the atlas itself.
+ * 22 curated accompaniment patterns + progression presets.
+ *
+ * Grid: 16 sixteenth-note steps per 4/4 bar. Every pattern is data:
+ *   lh events: { s, d, n: [roles], v? }        roles: R 5 5- 8 3 6 10 pedal
+ *   rh events: { s, d, n, v?, mod?, next? }    n: 'chord' | 'shell' | 'top' | [voicing indices]
+ *                                                 | { arp: role }  (single chord-tone in RH register)
+ *                                                 | 'anchor'       (key-tonic 5th+octave, chord-independent)
+ *   mod: 'sus4' re-voices that hit with a suspended 4th; next: true renders against the NEXT chord.
+ */
+(function () {
+  'use strict';
+
+  // helper: sixteen 16th-note RH arpeggio steps from a cycle of chord-tone roles
+  function arp16(cycle, vAccent) {
+    const ev = [];
+    for (let s = 0; s < 16; s++) {
+      ev.push({ s, d: 1, n: { arp: cycle[s % cycle.length] }, v: s % 4 === 0 ? vAccent : 0.55 });
+    }
+    return ev;
+  }
+
+  // helper: straight 8th-note chord hits with a velocity contour
+  function pump8(vels) {
+    return vels.map((v, i) => ({ s: i * 2, d: 2, n: 'chord', v }));
+  }
+
+  const GROUPS = [
+    { id: 'start', name: 'Start Here', blurb: 'The load-bearing basics. Master these and every other card is a variation.' },
+    { id: 'ballad', name: 'Ballads & Big Feelings', blurb: 'Slow-burn textures that carry a melody — or a singer — on top.' },
+    { id: 'songwriter', name: 'Singer-Songwriter', blurb: 'Intimate, guitar-flavoured textures. Space is the instrument.' },
+    { id: 'engine', name: 'Pop & Rock Engines', blurb: 'Momentum machines. These patterns are the drummer.' },
+    { id: 'groove', name: 'Groove & Soul', blurb: 'Where the rhythm gets opinionated: swing, off-beats, suspensions, syncopation.' },
+  ];
+
+  const PATTERNS = [
+    // ------------------------------------------------------------- START HERE
+    {
+      id: 'bedrock',
+      group: 'start',
+      name: 'Bedrock',
+      tag: 'Whole notes. Hear the changes before you decorate them.',
+      difficulty: 1,
+      energy: 1,
+      bpm: 76,
+      feel: 'straight',
+      pedal: 'chord',
+      color: null,
+      lh: [{ s: 0, d: 16, n: ['R', '5'] }],
+      rh: [{ s: 0, d: 16, n: 'chord', v: 0.75 }],
+      how: {
+        lh: 'Root + fifth together on beat 1. Hold the whole bar.',
+        rh: 'One full chord on beat 1. Hold, breathe, change with the bar.',
+      },
+      why:
+        'Every arrangement is this pattern with decisions added. Playing it first tunes your ear to the progression itself — the voice leading, the pull between chords — before rhythm enters the picture.',
+      use: 'First contact with any new progression; rubato intros; the last chord of anything.',
+      songs: ['The first 30 seconds of a thousand ballads', '“Someone Like You” intro gestures'],
+      tip: 'Change chords without looking down: find the next shape while the current one rings.',
+    },
+    {
+      id: 'pillars',
+      group: 'start',
+      name: 'Half-Note Pillars',
+      tag: 'Two pulses a bar. The slowest groove that still grooves.',
+      difficulty: 1,
+      energy: 2,
+      bpm: 80,
+      feel: 'straight',
+      pedal: 'chord',
+      color: null,
+      lh: [
+        { s: 0, d: 8, n: ['R'] },
+        { s: 8, d: 8, n: ['5'] },
+      ],
+      rh: [
+        { s: 0, d: 8, n: 'chord', v: 0.8 },
+        { s: 8, d: 8, n: 'chord', v: 0.65 },
+      ],
+      how: {
+        lh: 'Root on beat 1, fifth on beat 3. That root–fifth swing is the oldest bass move in music.',
+        rh: 'Chord on 1 and 3, the second one softer — like a heartbeat’s echo.',
+      },
+      why:
+        'Beat 1 states the chord; beat 3 answers it. The root–fifth alternation gives the bass a sense of motion without changing harmony — the foundation of country, folk and half the pop canon.',
+      use: 'Verses that need calm forward motion; accompanying a singer who rushes.',
+      songs: ['“Let It Be” (verse feel)', 'Country & gospel piano everywhere'],
+      tip: 'Make beat 3 quieter than beat 1 and the bar instantly sounds intentional.',
+    },
+    {
+      id: 'quarter-pulse',
+      group: 'start',
+      name: 'Quarter Pulse',
+      tag: 'A chord on every beat. Sturdy as a table.',
+      difficulty: 1,
+      energy: 2,
+      bpm: 92,
+      feel: 'straight',
+      pedal: 'chord',
+      color: null,
+      lh: [
+        { s: 0, d: 8, n: ['R'] },
+        { s: 8, d: 8, n: ['5'] },
+      ],
+      rh: [
+        { s: 0, d: 4, n: 'chord', v: 0.85 },
+        { s: 4, d: 4, n: 'chord', v: 0.6 },
+        { s: 8, d: 4, n: 'chord', v: 0.72 },
+        { s: 12, d: 4, n: 'chord', v: 0.6 },
+      ],
+      how: {
+        lh: 'Root on 1, fifth on 3 — long notes under the pulse.',
+        rh: 'Repeat the chord on every beat: strong, weak, medium, weak.',
+      },
+      why:
+        'The dynamic shape 1 > 3 > 2 = 4 is what separates “playing quarters” from “hammering quarters”. This is the piano acting as its own drummer, and the listener’s foot finds it immediately.',
+      use: 'Mid-energy verses; songs that need to feel honest and unfussy.',
+      songs: ['“Let It Be” (chorus)', '“Lean on Me” pulse', 'Beatles piano generally'],
+      tip: 'Think of beats 2 and 4 as played by your hand’s weight alone — no push.',
+    },
+    {
+      id: 'first-arpeggio',
+      group: 'start',
+      name: 'First Arpeggio',
+      tag: 'Unfold the chord instead of stating it.',
+      difficulty: 1,
+      energy: 1,
+      bpm: 72,
+      feel: 'straight',
+      pedal: 'chord',
+      color: null,
+      lh: [{ s: 0, d: 16, n: ['R'] }],
+      rh: [
+        { s: 0, d: 4, n: [0], v: 0.75 },
+        { s: 4, d: 4, n: [1], v: 0.65 },
+        { s: 8, d: 8, n: [2], v: 0.7 },
+      ],
+      how: {
+        lh: 'One deep root, held all bar.',
+        rh: 'Play the chord one note at a time, bottom to top, and let the pedal gather them.',
+      },
+      why:
+        'A broken chord is the same information as a block chord delivered with suspense. With the sustain pedal down, the notes accumulate into harmony — you get shimmer for the price of three fingers.',
+      use: 'Intros, quiet verses, the bar before everything goes quiet.',
+      songs: ['“Hallelujah”-family intros', 'Music-box moments in any ballad'],
+      tip: 'Aim for perfectly even timing — the beauty of an arpeggio is its calm.',
+    },
+    {
+      id: 'backbeat',
+      group: 'start',
+      name: 'The Backbeat',
+      tag: 'Chords on 2 and 4 — where the snare lives.',
+      difficulty: 1,
+      energy: 2,
+      bpm: 96,
+      feel: 'straight',
+      pedal: 'none',
+      color: null,
+      lh: [{ s: 0, d: 16, n: ['R', '5'] }],
+      rh: [
+        { s: 4, d: 3, n: 'chord', v: 0.72 },
+        { s: 12, d: 3, n: 'chord', v: 0.78 },
+      ],
+      how: {
+        lh: 'Root + fifth held from beat 1 — the anchor.',
+        rh: 'Nothing on 1. Chords on 2 and 4, short and confident.',
+      },
+      why:
+        'Beats 2 and 4 are the backbeat — where a drummer puts the snare. Comping there makes the piano lock with a rhythm section (real or imagined) and leaves beat 1 open for bass and voice. Learning to NOT play beat 1 is a rite of passage.',
+      use: 'Band settings; behind a busy vocal; anything that should feel like soul.',
+      songs: ['“Stand By Me” claps', 'Soul & gospel comping', '“Ain’t No Mountain” feel'],
+      tip: 'Count out loud the first ten times. Everyone drifts back to beat 1 at first.',
+    },
+
+    // ------------------------------------------------------- BALLADS & BIG FEELINGS
+    {
+      id: 'roll-158',
+      group: 'ballad',
+      name: 'The 1-5-8 Roll',
+      tag: 'The left hand becomes a harp.',
+      difficulty: 2,
+      energy: 2,
+      bpm: 69,
+      feel: 'straight',
+      pedal: 'chord',
+      color: 'add9',
+      lh: [
+        { s: 0, d: 2, n: ['R'] },
+        { s: 2, d: 2, n: ['5'] },
+        { s: 4, d: 2, n: ['8'] },
+        { s: 6, d: 10, n: ['10'] },
+      ],
+      rh: [
+        { s: 0, d: 8, n: 'shell', v: 0.6 },
+        { s: 8, d: 8, n: 'chord', v: 0.7 },
+      ],
+      how: {
+        lh: 'Root, fifth, octave, tenth — a rising ripple in 8ths, then let it ring.',
+        rh: 'Two soft touches: an open shell on 1, the full colour on 3.',
+      },
+      why:
+        'Root–fifth–octave outlines the chord with zero mud (no thirds down low), and the tenth on top adds the emotion. With pedal, the left hand alone sounds like an entire accompaniment — which is why every ballad pianist leans on it.',
+      use: 'Verses and choruses of slow songs; weddings; any time someone says “play something pretty”.',
+      songs: ['“Perfect” (Ed Sheeran, piano versions)', '“Can You Feel the Love Tonight”', 'Richard Marx / David Foster balladry'],
+      tip: 'If the tenth is too far to reach, land on the octave instead — the pedal keeps the fifth alive.',
+    },
+    {
+      id: 'cascade-16',
+      group: 'ballad',
+      name: 'Cascade 16ths',
+      tag: 'Continuous shimmer — the “Someone Like You” engine.',
+      difficulty: 3,
+      energy: 3,
+      bpm: 66,
+      feel: 'straight',
+      pedal: 'chord',
+      color: null,
+      lh: [
+        { s: 0, d: 8, n: ['R'] },
+        { s: 8, d: 8, n: ['R', '5'] },
+      ],
+      rh: arp16(['R', '5', '8', '10'], 0.72),
+      how: {
+        lh: 'Deep root on 1, root + fifth on 3. Stay out of the right hand’s way.',
+        rh: 'A four-note loop — root, fifth, octave, tenth — in unbroken 16ths.',
+      },
+      why:
+        'Constant 16ths create intensity without loudness: the energy is in the motion, not the attack. Because the loop uses only root, fifth, octave and tenth, it never clutters the harmony — it’s a waterfall that any melody can float on.',
+      use: 'Emotional builds; final choruses of ballads; when stillness needs to tremble.',
+      songs: ['“Someone Like You” (Adele)', '“River Flows in You” (Yiruma)', '“Clocks” cousin'],
+      tip: 'Keep the wrist loose and the fingers close to the keys — this is a marathon, not punches.',
+    },
+    {
+      id: 'anchor',
+      group: 'ballad',
+      name: 'The Anchor',
+      tag: 'The right hand refuses to move. Tension for free.',
+      difficulty: 2,
+      energy: 2,
+      bpm: 76,
+      feel: 'straight',
+      pedal: 'chord',
+      color: null,
+      lh: [
+        { s: 0, d: 8, n: ['R', '5'] },
+        { s: 8, d: 8, n: ['R', '5'] },
+      ],
+      rh: [
+        { s: 0, d: 3, n: 'anchor', v: 0.7 },
+        { s: 6, d: 2, n: 'anchor', v: 0.55 },
+        { s: 12, d: 4, n: 'anchor', v: 0.62 },
+      ],
+      how: {
+        lh: 'Root + fifth, restated on 1 and 3 — this hand carries the actual chord changes.',
+        rh: 'One fixed two-note shape (the key’s 5th + octave), repeated in a heartbeat rhythm: 1, the “and” of 2, 4. It does not change when the chords change.',
+      },
+      why:
+        'When the right hand holds still while the bass moves underneath, each chord recolours the same two notes — consonant on one chord, aching suspension on the next. It’s the cheapest emotional tension in pop, and it leaves total space for a vocal.',
+      use: 'Bridge builds; stripped-back verse 2; mashup transitions; underneath a melody you’re singing.',
+      songs: ['Taylor Swift’s live piano bridges', '“Everywhere”-style pedal figures', 'Worship piano builds'],
+      tip: 'Listen for the chord where the anchor turns dissonant — that bar is the emotional centre of the loop.',
+    },
+    {
+      id: 'push',
+      group: 'ballad',
+      name: 'The Push',
+      tag: 'Arrive early. The secret rhythm of nearly all pop.',
+      difficulty: 2,
+      energy: 3,
+      bpm: 88,
+      feel: 'straight',
+      pedal: 'chord',
+      color: 'add9',
+      lh: [
+        { s: 0, d: 14, n: ['R'] },
+        { s: 14, d: 2, n: ['R'], next: true },
+      ],
+      rh: [
+        { s: 0, d: 6, n: 'chord', v: 0.8 },
+        { s: 6, d: 8, n: 'chord', v: 0.65 },
+        { s: 14, d: 2, n: 'chord', v: 0.75, next: true },
+      ],
+      how: {
+        lh: 'Root held long — then jump to the NEXT bar’s root half a beat early.',
+        rh: 'Chord on 1, again on the “and” of 2… then the next chord lands on the “and” of 4, before the barline.',
+      },
+      why:
+        'Landing the new chord an 8th early is called an anticipation, and it is the single most common rhythm in recorded pop. It makes the music lean forward — the ear hears the future arrive ahead of schedule and reads it as momentum.',
+      use: 'Any time straight playing feels stiff or “classical”. Which is often.',
+      songs: ['Nearly every pop record since 1965', '“Don’t Look Back in Anger” comping', 'Elton John’s right hand'],
+      tip: 'Practise saying “one… and-of-four” aloud. The push must feel placed, not rushed.',
+    },
+
+    // ---------------------------------------------------------- SINGER-SONGWRITER
+    {
+      id: 'folk-roll',
+      group: 'songwriter',
+      name: 'Folk Roll',
+      tag: 'Fingerpicking, translated to piano.',
+      difficulty: 2,
+      energy: 2,
+      bpm: 84,
+      feel: 'straight',
+      pedal: 'chord',
+      color: 'add9',
+      lh: [
+        { s: 0, d: 8, n: ['R'] },
+        { s: 8, d: 8, n: ['5'] },
+      ],
+      rh: [
+        { s: 2, d: 2, n: [0], v: 0.55 },
+        { s: 4, d: 2, n: [1], v: 0.6 },
+        { s: 6, d: 2, n: [2], v: 0.65 },
+        { s: 10, d: 2, n: [1], v: 0.55 },
+        { s: 12, d: 2, n: [2], v: 0.6 },
+        { s: 14, d: 2, n: [1], v: 0.5 },
+      ],
+      how: {
+        lh: 'Root on 1, fifth on 3 — the “thumb” of the pattern.',
+        rh: 'Single chord tones woven between the bass notes, never on the beat with them.',
+      },
+      why:
+        'This is Travis picking without the guitar: bass and treble take turns, so the texture is delicate but continuous. Because hands alternate, it sounds twice as hard as it is — a classic accompaniment illusion.',
+      use: 'Intimate verses; acoustic covers; songs about weather and leaving.',
+      songs: ['“Landslide” (as pianists play it)', '“Skinny Love” covers', 'Iron & Wine textures'],
+      tip: 'The hands should interlock like footsteps — if two notes collide, slow down until they don’t.',
+    },
+    {
+      id: 'campfire',
+      group: 'songwriter',
+      name: 'Campfire Strum',
+      tag: 'The world’s most-strummed rhythm, borrowed from guitar.',
+      difficulty: 2,
+      energy: 3,
+      bpm: 108,
+      feel: 'straight',
+      pedal: 'none',
+      color: 'sus2',
+      lh: [{ s: 0, d: 16, n: ['R'] }],
+      rh: [
+        { s: 0, d: 4, n: 'chord', v: 0.85 },
+        { s: 4, d: 2, n: 'chord', v: 0.6 },
+        { s: 6, d: 2, n: 'chord', v: 0.7 },
+        { s: 10, d: 2, n: 'chord', v: 0.7 },
+        { s: 12, d: 2, n: 'chord', v: 0.75 },
+        { s: 14, d: 2, n: 'chord', v: 0.55 },
+      ],
+      how: {
+        lh: 'Root, held — you’re the low E string.',
+        rh: 'The guitar strum D–DU–UDU: hits on 1, 2, and-of-2, and-of-3, 4, and-of-4. Beat 3 is silent — that gap IS the pattern.',
+      },
+      why:
+        'The missing downbeat on 3 is what gives this rhythm its skip. Every guitarist learns it first; on piano it instantly reads as “acoustic, warm, sung around a fire”. The sus2 colour keeps repeated chords from cloying.',
+      use: 'Uptempo acoustic pop; covers of guitar songs; choruses that should bounce, not pound.',
+      songs: ['“Love Story”, “Riptide”, “Ho Hey” — the strum is the genre'],
+      tip: 'Lighten the up-strums (the off-beats). Down heavy, up feathered.',
+    },
+    {
+      id: 'pedal-point',
+      group: 'songwriter',
+      name: 'The Pedal Point',
+      tag: 'The bass stays home while the chords wander.',
+      difficulty: 1,
+      energy: 2,
+      bpm: 74,
+      feel: 'straight',
+      pedal: 'chord',
+      color: null,
+      lh: [
+        { s: 0, d: 8, n: ['pedal'] },
+        { s: 8, d: 8, n: ['pedal'] },
+      ],
+      rh: [
+        { s: 0, d: 8, n: 'chord', v: 0.72 },
+        { s: 8, d: 8, n: 'chord', v: 0.62 },
+      ],
+      how: {
+        lh: 'The key’s home note (the tonic), on 1 and 3 — for every single chord.',
+        rh: 'The real chords, changing as written, floating above the fixed bass.',
+      },
+      why:
+        'A pedal point inverts the usual logic: harmony moves, bass refuses. Chords that agree with the pedal sound grounded; chords that clash sound suspended, yearning. It makes even a plain progression feel cinematic — and it’s the easiest left hand on this map.',
+      use: 'Intros and outros; verse 1 before the bass “arrives”; ambient reharmonising.',
+      songs: ['“Halo” verse feel', '“Chasing Cars” (concept)', 'Film-score piano everywhere'],
+      tip: 'Notice which chords rub against the pedal — those are your song’s tension points.',
+    },
+    {
+      id: 'alberti-drift',
+      group: 'songwriter',
+      name: 'Alberti Drift',
+      tag: 'Mozart’s accompaniment, wearing a hoodie.',
+      difficulty: 2,
+      energy: 2,
+      bpm: 88,
+      feel: 'straight',
+      pedal: 'chord',
+      color: 'add9',
+      lh: [
+        { s: 0, d: 8, n: ['R'] },
+        { s: 8, d: 8, n: ['5'] },
+      ],
+      rh: [
+        { s: 0, d: 2, n: [0], v: 0.65 },
+        { s: 2, d: 2, n: [2], v: 0.5 },
+        { s: 4, d: 2, n: [1], v: 0.55 },
+        { s: 6, d: 2, n: [2], v: 0.5 },
+        { s: 8, d: 2, n: [0], v: 0.62 },
+        { s: 10, d: 2, n: [2], v: 0.5 },
+        { s: 12, d: 2, n: [1], v: 0.55 },
+        { s: 14, d: 2, n: [2], v: 0.5 },
+      ],
+      how: {
+        lh: 'Root and fifth in long notes.',
+        rh: 'Low–high–middle–high, over and over: the Alberti bass figure, moved up into the right hand.',
+      },
+      why:
+        'The Alberti figure is a 250-year-old trick for making a held chord feel alive. In pop it becomes a gentle music-box texture — “A Thousand Miles” is its most famous modern descendant. Great for keeping motion under a slow melody.',
+      use: 'Dreamy verses; interludes; anything nostalgic.',
+      songs: ['“A Thousand Miles” (spirit of)', 'Mozart K.545 (the source)', 'Lo-fi piano loops'],
+      tip: 'The repeated top note should be the quietest — it’s texture, not melody.',
+    },
+
+    // -------------------------------------------------------- POP & ROCK ENGINES
+    {
+      id: 'eighth-pump',
+      group: 'engine',
+      name: 'The Pump',
+      tag: 'Straight 8ths, all conviction. The pop-rock heartbeat.',
+      difficulty: 2,
+      energy: 4,
+      bpm: 116,
+      feel: 'straight',
+      pedal: 'none',
+      color: null,
+      lh: [
+        { s: 0, d: 8, n: ['R'] },
+        { s: 8, d: 8, n: ['R'] },
+      ],
+      rh: pump8([0.85, 0.55, 0.7, 0.55, 0.78, 0.55, 0.7, 0.58]),
+      how: {
+        lh: 'Root in half notes — a solid floor.',
+        rh: 'The chord, eight times a bar, with weight on the beats and none on the “ands”.',
+      },
+      why:
+        'Repeated 8th-note chords are pop-rock’s idle engine: motion you can build anything on. The whole art is dynamic — beats heavy, off-beats light — so it pulses instead of hammering. Add the chorus energy switch and this becomes a stadium.',
+      use: 'Choruses; driving verses; any song the drummer counts in with sticks.',
+      songs: ['“How to Save a Life” (The Fray)', '“Apologize” pulse', 'The Killers’ piano parts'],
+      tip: 'Practise it pianissimo. If you can pump quietly, loud is free.',
+    },
+    {
+      id: 'folds-drive',
+      group: 'engine',
+      name: 'Driving Octaves',
+      tag: 'Left hand as bass guitar, right hand as snare. Punk for pianists.',
+      difficulty: 3,
+      energy: 5,
+      bpm: 132,
+      feel: 'straight',
+      pedal: 'none',
+      color: null,
+      lh: [
+        { s: 0, d: 2, n: ['R', '8'], v: 0.85 },
+        { s: 2, d: 2, n: ['R', '8'], v: 0.6 },
+        { s: 4, d: 2, n: ['R', '8'], v: 0.7 },
+        { s: 6, d: 2, n: ['R', '8'], v: 0.6 },
+        { s: 8, d: 2, n: ['R', '8'], v: 0.8 },
+        { s: 10, d: 2, n: ['R', '8'], v: 0.6 },
+        { s: 12, d: 2, n: ['R', '8'], v: 0.7 },
+        { s: 14, d: 2, n: ['R', '8'], v: 0.62 },
+      ],
+      rh: [
+        { s: 0, d: 4, n: 'chord', v: 0.85 },
+        { s: 6, d: 4, n: 'chord', v: 0.9 },
+        { s: 12, d: 4, n: 'chord', v: 0.8 },
+      ],
+      how: {
+        lh: 'Octaves on every 8th note. Relentless. This is the workout.',
+        rh: 'Three stabs: beat 1, the “and” of 2, beat 4 — the classic rock syncopation.',
+      },
+      why:
+        'The left hand takes the bass player’s job (constant 8ths = drive), freeing the right hand to hit like a snare drum. The 1 / and-of-2 / 4 stab pattern is syncopation with training wheels off — it’s why Ben Folds sounds like a full band alone.',
+      use: 'When the song needs to be louder than it is; final choruses; anything cathartic.',
+      songs: ['“Zak and Sara”, “Song for the Dumped” (Ben Folds)', '“Bennie and the Jets” attitude'],
+      tip: 'Bounce the octaves from the wrist, not the arm — stiff forearms end this pattern early.',
+    },
+    {
+      id: 'clocks-332',
+      group: 'engine',
+      name: 'The 3-3-2',
+      tag: 'Eight notes, split 3+3+2. The most important rhythm in pop.',
+      difficulty: 2,
+      energy: 3,
+      bpm: 104,
+      feel: 'straight',
+      pedal: 'chord',
+      color: null,
+      lh: [
+        { s: 0, d: 8, n: ['R', '5'] },
+        { s: 8, d: 8, n: ['R', '5'] },
+      ],
+      rh: [
+        { s: 0, d: 2, n: [2], v: 0.8 },
+        { s: 2, d: 2, n: [1], v: 0.55 },
+        { s: 4, d: 2, n: [0], v: 0.6 },
+        { s: 6, d: 2, n: [2], v: 0.78 },
+        { s: 8, d: 2, n: [1], v: 0.55 },
+        { s: 10, d: 2, n: [0], v: 0.6 },
+        { s: 12, d: 2, n: [2], v: 0.75 },
+        { s: 14, d: 2, n: [1], v: 0.55 },
+      ],
+      how: {
+        lh: 'Root + fifth in half notes, calm underneath.',
+        rh: 'A falling three-note figure (top–middle–bottom) that restarts every 3 eighth-notes: groups of 3 + 3 + 2.',
+      },
+      why:
+        'Eight 8th-notes divided 3+3+2 — the tresillo — is the rhythmic DNA of “Clocks”, reggaetón, EDM builds and half the Hot 100. The accents drift across the beat and pull the bar forward. Learn to feel 3-3-2 and modern pop rhythm opens up.',
+      use: 'Hypnotic verses; builds; any loop that should feel like it’s rolling downhill.',
+      songs: ['“Clocks” (Coldplay) — literally this figure', '“Shape of You”, “Despacito” (the underlying tresillo)'],
+      tip: 'Accent the first note of each group — ONE-two-three ONE-two-three ONE-two — until your hand knows it.',
+    },
+    {
+      id: 'anthem',
+      group: 'engine',
+      name: 'Stadium Octaves',
+      tag: 'Both hands wide open. The last chorus, in pattern form.',
+      difficulty: 2,
+      energy: 5,
+      bpm: 120,
+      feel: 'straight',
+      pedal: 'chord',
+      color: 'add9',
+      lh: [
+        { s: 0, d: 4, n: ['R', '8'], v: 0.85 },
+        { s: 4, d: 4, n: ['R', '8'], v: 0.7 },
+        { s: 8, d: 4, n: ['R', '8'], v: 0.8 },
+        { s: 12, d: 4, n: ['R', '8'], v: 0.7 },
+      ],
+      rh: pump8([0.9, 0.6, 0.75, 0.6, 0.85, 0.6, 0.75, 0.65]),
+      how: {
+        lh: 'Octaves in quarter notes — big bells.',
+        rh: 'Add9 chords pumping in 8ths, top note ringing out.',
+      },
+      why:
+        'Octave bass in quarters plus pumping add9 chords is the “final chorus” texture: maximum width (low octaves to high add9s) and maximum pulse. The add9 keeps the wall of sound from sounding blunt — that 9th is the shimmer in every anthem.',
+      use: 'Choruses, key changes, the moment the crowd’s phones go up.',
+      songs: ['“Fix You” climax', '“Don’t Stop Believin’” grandeur', 'Coldplay/OneRepublic choruses'],
+      tip: 'Save it. If verse 1 is a stadium, the chorus has nowhere to go.',
+    },
+
+    // ------------------------------------------------------------ GROOVE & SOUL
+    {
+      id: 'fifties-walk',
+      group: 'groove',
+      name: "The '50s Walk",
+      tag: 'The bass line that built rock and roll: 1–3–5–6.',
+      difficulty: 2,
+      energy: 3,
+      bpm: 112,
+      feel: 'straight',
+      pedal: 'none',
+      color: null,
+      lh: [
+        { s: 0, d: 4, n: ['R'], v: 0.8 },
+        { s: 4, d: 4, n: ['3'], v: 0.65 },
+        { s: 8, d: 4, n: ['5'], v: 0.72 },
+        { s: 12, d: 4, n: ['6'], v: 0.68 },
+      ],
+      rh: [
+        { s: 4, d: 3, n: 'chord', v: 0.65 },
+        { s: 12, d: 3, n: 'chord', v: 0.7 },
+      ],
+      how: {
+        lh: 'Walk up the chord: root, third, fifth, sixth — one note per beat.',
+        rh: 'Chords on the backbeat (2 and 4), short, like a snare.',
+      },
+      why:
+        'The 1–3–5–6 walk is the skeleton of “Stand By Me” and the entire doo-wop era. A moving bass under a static chord creates groove without changing harmony, and the walk delivers you perfectly onto the next bar’s root.',
+      use: 'Doo-wop progressions; retro numbers; teaching your left hand independence.',
+      songs: ['“Stand By Me”', '“Earth Angel”', 'Every 12/8 slow-dance ever'],
+      tip: 'The walk works because it’s legato — connect the bass notes like a singer would.',
+    },
+    {
+      id: 'offbeats',
+      group: 'groove',
+      name: 'Off-Beats Only',
+      tag: 'Play only the “ands”. Instant lift.',
+      difficulty: 2,
+      energy: 3,
+      bpm: 100,
+      feel: 'straight',
+      pedal: 'none',
+      color: null,
+      lh: [
+        { s: 0, d: 6, n: ['R'], v: 0.8 },
+        { s: 8, d: 6, n: ['R'], v: 0.72 },
+      ],
+      rh: [
+        { s: 2, d: 2, n: 'chord', v: 0.65 },
+        { s: 6, d: 2, n: 'chord', v: 0.65 },
+        { s: 10, d: 2, n: 'chord', v: 0.65 },
+        { s: 14, d: 2, n: 'chord', v: 0.65 },
+      ],
+      how: {
+        lh: 'Roots on 1 and 3 — the “on” beats.',
+        rh: 'Chords ONLY on the off-beats: the “and” of every beat. Crisp, short, even.',
+      },
+      why:
+        'This is the reggae skank on piano: the right hand answers the bass instead of agreeing with it. Off-beat chords create buoyancy — the music seems to bounce upward. It is also the single best exercise for rhythmic independence between your hands.',
+      use: 'Reggae/ska feels; tropical pop; brightening a plodding song.',
+      songs: ['“Three Little Birds”', '“No Woman, No Cry” skank', '“Shape of You” comp feel'],
+      tip: 'Whisper “and” as you play each chord. When you can stop whispering, you own it.',
+    },
+    {
+      id: 'shuffle',
+      group: 'groove',
+      name: 'The Charleston Shuffle',
+      tag: 'Swing the 8ths, hit 1 and the and-of-2. Ninety years of cool.',
+      difficulty: 2,
+      energy: 3,
+      bpm: 112,
+      feel: 'swing',
+      pedal: 'none',
+      color: null,
+      lh: [
+        { s: 0, d: 4, n: ['R'], v: 0.78 },
+        { s: 4, d: 4, n: ['5'], v: 0.62 },
+        { s: 8, d: 4, n: ['6'], v: 0.7 },
+        { s: 12, d: 4, n: ['5'], v: 0.62 },
+      ],
+      rh: [
+        { s: 0, d: 3, n: 'chord', v: 0.78 },
+        { s: 6, d: 4, n: 'chord', v: 0.68 },
+      ],
+      how: {
+        lh: 'A bouncing walk — root, fifth, sixth, fifth — with a swing lilt.',
+        rh: 'Two hits per bar: beat 1, then the “and” of 2, held. That rhythm is called the Charleston.',
+      },
+      why:
+        'Swing means the off-beats arrive late, in a long-short lope. The Charleston rhythm (1, and-of-2) is jazz’s most durable comping figure — two notes that imply an entire rhythm section. Together they make anything sound like it owns a hat.',
+      use: 'Blues, swing, old-soul covers; making simple progressions sound sophisticated.',
+      songs: ['“Valerie” (Winehouse version)', '“Home” (Bublé)', 'Any 12-bar blues'],
+      tip: 'Swing lives in the LATE off-beat. If it sounds like a limerick, you’ve over-swung.',
+    },
+    {
+      id: 'gospel-sus',
+      group: 'groove',
+      name: 'Gospel Sus',
+      tag: 'Suspend the chord, then let it land. Church in one move.',
+      difficulty: 3,
+      energy: 4,
+      bpm: 80,
+      feel: 'straight',
+      pedal: 'chord',
+      color: null,
+      lh: [
+        { s: 0, d: 8, n: ['R'] },
+        { s: 8, d: 4, n: ['R', '5'] },
+        { s: 12, d: 4, n: ['8'], v: 0.7 },
+      ],
+      rh: [
+        { s: 0, d: 4, n: 'chord', mod: 'sus4', v: 0.82 },
+        { s: 4, d: 6, n: 'chord', v: 0.7 },
+        { s: 10, d: 2, n: 'chord', mod: 'sus4', v: 0.6 },
+        { s: 12, d: 4, n: 'chord', v: 0.78 },
+      ],
+      how: {
+        lh: 'Root, then root + fifth, then the octave climbing into the next bar.',
+        rh: 'Every chord arrives suspended (4th instead of 3rd) and then resolves. Tension… release. Twice a bar.',
+      },
+      why:
+        'The sus4→3 resolution is gospel’s signature gesture: the 4th leans on the chord and then settles home, and the ear hears “amen” every time. Sprinkling suspensions over a plain progression is the fastest way to make it sound played rather than pressed.',
+      use: 'Gospel, soul and worship settings; turnarounds; adding ceremony to a chorus.',
+      songs: ['“Oh Happy Day”', '“Let It Be” (gospel readings)', '“Someone Saved My Life Tonight”'],
+      tip: 'Voice the sus and its resolution with the same hand shape — only one finger should move.',
+    },
+    {
+      id: 'snap-16',
+      group: 'groove',
+      name: '16th Snap',
+      tag: 'Short, syncopated, funky. The chord as percussion.',
+      difficulty: 3,
+      energy: 4,
+      bpm: 96,
+      feel: 'straight',
+      pedal: 'none',
+      color: null,
+      lh: [
+        { s: 0, d: 3, n: ['R'], v: 0.85 },
+        { s: 6, d: 2, n: ['R'], v: 0.6 },
+        { s: 8, d: 2, n: ['5'], v: 0.65 },
+        { s: 12, d: 3, n: ['R'], v: 0.75 },
+      ],
+      rh: [
+        { s: 0, d: 1, n: 'chord', v: 0.85 },
+        { s: 3, d: 1, n: 'chord', v: 0.55 },
+        { s: 6, d: 2, n: 'chord', v: 0.78 },
+        { s: 10, d: 1, n: 'chord', v: 0.6 },
+        { s: 12, d: 2, n: 'chord', v: 0.8 },
+      ],
+      how: {
+        lh: 'Punchy roots and fifths in a broken, bass-player rhythm.',
+        rh: 'Five stabs scattered across the 16th grid — beat 1, the “a” of 1, the “and” of 2, the “a” of 3, beat 4. All short.',
+      },
+      why:
+        'Funk treats chords as drums: the pitch matters less than the placement. Notes off the grid’s strong points (the “e”s and “a”s) snap against the pulse. Every release is as rhythmic as every attack — the silence between stabs IS the groove.',
+      use: 'Funk and R&B; pre-choruses that need attitude; tightening up a band.',
+      songs: ['“Superstition” (clav feel)', 'Charlie Puth-style pop-funk', 'D’Angelo-lite comping'],
+      tip: 'Practise with the metronome on 2 and 4 only. Funk is measured in what you leave out.',
+    },
+  ];
+
+  // ------------------------------------------------------------ progression presets
+  const PRESETS = [
+    { id: 'axis', name: 'The Axis of Pop', text: 'C | G | Am | F', note: 'I–V–vi–IV. Half the charts, one loop.' },
+    { id: 'doowop', name: "'50s Doo-Wop", text: 'C | Am | F | G', note: 'I–vi–IV–V. “Stand By Me”, “Earth Angel”.' },
+    { id: 'turnaround', name: 'The Turnaround', text: 'C Am | Dm G', note: 'I–vi–ii–V, two chords a bar. Jazz’s favourite loop.' },
+    { id: 'heart', name: 'The Heart-Tugger', text: 'Am | F | C | G', note: 'vi–IV–I–V. Same chords as the Axis, sadder door.' },
+    { id: 'lift', name: 'The Lift', text: 'F | G | Em | Am', note: 'IV–V–iii–vi. The J-pop “royal road”.' },
+    { id: 'adele', name: 'Hello, Adele', text: 'A | C#m/G# | F#m | D', note: 'I–iii⁶–vi–IV with a walking bass line.' },
+    { id: 'letitbe', name: 'Let It Be', text: 'C | G | Am | F | C | G | F | C', note: 'The full 8-bar gospel-pop sentence.' },
+    { id: 'canon', name: "Pachelbel's Wheel", text: 'C | G | Am | Em | F | C | F | G', note: 'The Canon. Also “Basket Case”. Also everything.' },
+    { id: 'creep', name: 'The Chromatic Drift', text: 'G | B | C | Cm', note: 'I–III–IV–iv. “Creep”. Borrowed chords, big feelings.' },
+  ];
+
+  const Atlas = { GROUPS, PATTERNS, PRESETS };
+  if (typeof module !== 'undefined' && module.exports) module.exports = Atlas;
+  else window.Atlas = Atlas;
+})();
+
+</script>
+  <script>
+/* Pop Piano Atlas — rendering + playback engine.
+ * Pure render functions (node-testable) + a lookahead scheduler that drives an
+ * injected audio output, so the same code renders playback and MIDI export.
+ */
+(function () {
+  'use strict';
+
+  const T = typeof module !== 'undefined' ? require('./theory.js') : window.Theory;
+
+  const STEPS_PER_BAR = 16;
+
+  // -------------------------------------------------------------- progression prep
+
+  /** Flatten parsed bars into chord segments with step ranges. */
+  function buildSegments(bars) {
+    const segs = [];
+    bars.forEach((chords, bar) => {
+      if (chords.length === 1) {
+        segs.push({ bar, start: 0, end: 16, chord: chords[0] });
+      } else {
+        segs.push({ bar, start: 0, end: 8, chord: chords[0] });
+        segs.push({ bar, start: 8, end: 16, chord: chords[1] });
+      }
+    });
+    return segs;
+  }
+
+  /** Precompute voice-led RH voicings for every segment (loop-aware: last leads back to first). */
+  function computeVoicings(segments, color) {
+    const out = [];
+    let prev = null;
+    for (const seg of segments) {
+      const v = T.voiceChord(seg.chord, prev, color);
+      out.push(v);
+      prev = v;
+    }
+    return out;
+  }
+
+  /** Build a full song context from a progression string + pattern. */
+  function buildContext(progressionText, pattern) {
+    const parsed = T.parseProgression(progressionText);
+    if (!parsed.ok) return parsed;
+    const chords = parsed.bars.flat();
+    const tonic = T.detectKey(chords);
+    const segments = buildSegments(parsed.bars);
+    const voicings = computeVoicings(segments, pattern ? pattern.color : null);
+    const susVoicings = {}; // lazy cache for sus4-modified hits
+    return {
+      ok: true,
+      bars: parsed.bars,
+      totalBars: parsed.bars.length,
+      segments,
+      voicings,
+      susVoicings,
+      tonic,
+      romans: segments.map((s) => T.romanNumeral(s.chord, tonic)),
+    };
+  }
+
+  function segmentAt(ctx, bar, step) {
+    for (let i = 0; i < ctx.segments.length; i++) {
+      const s = ctx.segments[i];
+      if (s.bar === bar && step >= s.start && step < s.end) return i;
+    }
+    return 0;
+  }
+
+  function nextSegmentIndex(ctx, segIdx) {
+    return (segIdx + 1) % ctx.segments.length;
+  }
+
+  function susVoicing(ctx, segIdx) {
+    if (!(segIdx in ctx.susVoicings)) {
+      const seg = ctx.segments[segIdx];
+      const ch = seg.chord;
+      const intervals = ch.intervals.map((i) => (i === 3 || i === 4 ? 5 : i));
+      const modChord = { ...ch, intervals, pcs: intervals.map((i) => (ch.rootPc + i) % 12) };
+      ctx.susVoicings[segIdx] = T.voiceChord(modChord, ctx.voicings[segIdx], null);
+    }
+    return ctx.susVoicings[segIdx];
+  }
+
+  // -------------------------------------------------------------- event resolution
+
+  /** Chord-tone role placed in the RH arpeggio register (around C4–A5). */
+  function arpNote(role, chord) {
+    let root = chord.rootPc + 48; // C3 octave
+    while (root < 55) root += 12; // lift into G3..F#4
+    const third = chord.isMinor ? 3 : 4;
+    switch (role) {
+      case 'R': return root;
+      case '3': return root + third;
+      case '5': return root + 7;
+      case '8': return root + 12;
+      case '10': return root + 12 + third;
+      case '12': return root + 19;
+      default: return root;
+    }
+  }
+
+  function anchorNotes(tonicPc) {
+    let fifth = tonicPc + 7 + 48; // fifth of key
+    while (fifth < 64) fifth += 12; // near G4..F#5
+    while (fifth > 74) fifth -= 12;
+    return [fifth, fifth + 5]; // 5̂ + 1̂ above it (a perfect 4th up = tonic)
+  }
+
+  function pickIndices(voicing, indices) {
+    return indices.map((i) => voicing[i % voicing.length] + 12 * Math.floor(i / voicing.length));
+  }
+
+  /**
+   * Render one bar into playable events.
+   * Returns [{ step, dur, midis, vel, hand }] — step/dur in 16th steps (step may be fractional after swing).
+   */
+  function renderBar(ctx, pattern, barIndex, energy) {
+    const events = [];
+    const bar = barIndex % ctx.totalBars;
+    const chorus = energy === 'chorus';
+
+    const resolveSeg = (s, useNext) => {
+      let idx = segmentAt(ctx, bar, Math.min(s, 15));
+      if (useNext) idx = nextSegmentIndex(ctx, idx);
+      return idx;
+    };
+
+    // ---- left hand
+    for (const ev of pattern.lh) {
+      const segIdx = resolveSeg(ev.s, ev.next);
+      const chord = ctx.segments[segIdx].chord;
+      let midis = ev.n.map((role) => T.lhRole(role, chord, ctx.tonic));
+      const doublable = midis.length === 1 && (ev.n[0] === 'R' || ev.n[0] === 'pedal') && midis[0] + 12 <= 58;
+      if (chorus && doublable) midis = [midis[0], midis[0] + 12];
+      midis = [...new Set(midis)];
+      events.push({ step: ev.s, dur: ev.d, midis, vel: ev.v != null ? ev.v : 0.72, hand: 'lh', next: !!ev.next });
+    }
+
+    // ---- right hand
+    for (const ev of pattern.rh) {
+      const segIdx = resolveSeg(ev.s, ev.next);
+      const chord = ctx.segments[segIdx].chord;
+      let midis;
+      if (ev.n === 'anchor') {
+        midis = anchorNotes(ctx.tonic);
+      } else if (ev.mod === 'sus4') {
+        midis = susVoicing(ctx, segIdx).slice();
+      } else {
+        const v = ctx.voicings[segIdx];
+        if (ev.n === 'chord') midis = v.slice();
+        else if (ev.n === 'shell') midis = [v[0], v[v.length - 1]];
+        else if (ev.n === 'top') midis = [v[v.length - 1]];
+        else if (Array.isArray(ev.n)) midis = pickIndices(v, ev.n);
+        else if (ev.n && ev.n.arp) midis = [arpNote(ev.n.arp, chord)];
+        else midis = v.slice();
+      }
+      if (chorus && (ev.n === 'chord' || ev.mod === 'sus4')) {
+        const top = midis[midis.length - 1];
+        if (top + 12 <= 88) midis = [...midis, top + 12];
+      }
+      events.push({ step: ev.s, dur: ev.d, midis, vel: ev.v != null ? ev.v : 0.7, hand: 'rh', next: !!ev.next });
+    }
+
+    // ---- energy velocity shaping
+    const velScale = chorus ? 1.15 : 1.0;
+    for (const ev of events) ev.vel = Math.min(1, ev.vel * velScale);
+
+    // ---- pedal: let notes ring to the end of their chord segment
+    if (pattern.pedal === 'chord') {
+      for (const ev of events) {
+        const segIdx = resolveSeg(Math.floor(ev.step), ev.next);
+        const seg = ctx.segments[segIdx];
+        const end = ev.next ? STEPS_PER_BAR + seg.end - seg.start : seg.end;
+        const ringTo = Math.max(ev.dur, end - ev.step);
+        ev.dur = Math.min(ringTo, ev.dur + 12); // cap the wash
+      }
+    }
+
+    // ---- swing: delay off-beat 8ths (steps 2, 6, 10, 14) by a third of a beat’s half
+    if (pattern.feel === 'swing') {
+      for (const ev of events) {
+        if (ev.step % 4 === 2) ev.step += 0.66;
+      }
+    }
+
+    events.sort((a, b) => a.step - b.step);
+    return events;
+  }
+
+  // -------------------------------------------------------------- scheduler
+
+  function createPlayer(getAudio) {
+    const state = {
+      playing: false,
+      bpm: 84,
+      energy: 'verse',
+      hands: 'both',
+      metronome: false,
+      countIn: false,
+      ctxData: null, // song context
+      pattern: null,
+      pendingPattern: null,
+      bar: 0, // next bar to schedule (absolute)
+      nextBarTime: 0,
+      timer: null,
+      listeners: { bar: [], swap: [], stop: [] },
+      viz: [], // {tOn,tOff,midi,hand}
+      beats: [], // {t, bar, beat}
+    };
+
+    function emit(name, arg) {
+      for (const fn of state.listeners[name]) fn(arg);
+    }
+
+    function secondsPerBar() {
+      return (60 / state.bpm) * 4;
+    }
+
+    function scheduleBar(t0) {
+      const audio = getAudio();
+      const spb = secondsPerBar();
+      const stepDur = spb / STEPS_PER_BAR;
+      // apply queued pattern at the barline
+      if (state.pendingPattern) {
+        state.pattern = state.pendingPattern;
+        state.pendingPattern = null;
+        emit('swap', state.pattern);
+      }
+      const barMod = state.bar % state.ctxData.totalBars;
+      const events = renderBar(state.ctxData, state.pattern, barMod, state.energy);
+      for (const ev of events) {
+        if (state.hands !== 'both' && ev.hand !== state.hands) continue;
+        const t = t0 + ev.step * stepDur + (Math.random() - 0.5) * 0.008;
+        const dur = Math.max(0.08, ev.dur * stepDur);
+        for (const m of ev.midis) {
+          const vel = Math.max(0.15, Math.min(1, ev.vel + (Math.random() - 0.5) * 0.05));
+          audio.playNote(t, m, vel, dur, ev.hand);
+          state.viz.push({ tOn: t, tOff: t + dur, midi: m, hand: ev.hand });
+        }
+      }
+      if (state.metronome) {
+        for (let b = 0; b < 4; b++) audio.click(t0 + b * (spb / 4), b === 0);
+      }
+      for (let b = 0; b < 4; b++) state.beats.push({ t: t0 + b * (spb / 4), bar: barMod, beat: b });
+      // trim old viz data
+      const now = audio.now();
+      if (state.viz.length > 400) state.viz = state.viz.filter((v) => v.tOff > now - 0.5);
+      if (state.beats.length > 64) state.beats = state.beats.filter((b) => b.t > now - 2);
+      emit('bar', { bar: barMod, t: t0 });
+      state.bar++;
+      state.nextBarTime = t0 + spb;
+    }
+
+    function tick() {
+      const audio = getAudio();
+      const horizon = audio.now() + 0.18;
+      while (state.nextBarTime < horizon) scheduleBar(state.nextBarTime);
+    }
+
+    return {
+      state,
+      on(name, fn) {
+        state.listeners[name].push(fn);
+      },
+      setSong(progressionText) {
+        const ctx = buildContext(progressionText, state.pendingPattern || state.pattern);
+        if (!ctx.ok) return ctx;
+        state.ctxData = ctx;
+        return ctx;
+      },
+      setPattern(pattern, immediate) {
+        if (!state.playing || immediate) {
+          state.pattern = pattern;
+          state.pendingPattern = null;
+          // colour affects voicings — rebuild if colour changed
+          if (state.ctxData) {
+            state.ctxData.voicings = computeVoicings(state.ctxData.segments, pattern.color);
+            state.ctxData.susVoicings = {};
+          }
+          emit('swap', pattern);
+        } else {
+          state.pendingPattern = pattern;
+          if (state.ctxData) {
+            state.ctxData.voicings = computeVoicings(state.ctxData.segments, pattern.color);
+            state.ctxData.susVoicings = {};
+          }
+        }
+      },
+      play() {
+        if (state.playing || !state.ctxData || !state.pattern) return;
+        const audio = getAudio();
+        audio.resume();
+        state.playing = true;
+        state.bar = 0;
+        let start = audio.now() + 0.08;
+        if (state.countIn) {
+          const spb = secondsPerBar() / 4;
+          for (let b = 0; b < 4; b++) audio.click(start + b * spb, b === 0);
+          for (let b = 0; b < 4; b++) state.beats.push({ t: start + b * spb, bar: -1, beat: b });
+          start += secondsPerBar();
+        }
+        state.nextBarTime = start;
+        state.timer = setInterval(tick, 30);
+        tick();
+      },
+      stop() {
+        if (!state.playing) return;
+        state.playing = false;
+        clearInterval(state.timer);
+        getAudio().allOff();
+        state.viz = [];
+        state.beats = [];
+        emit('stop');
+      },
+    };
+  }
+
+  // -------------------------------------------------------------- MIDI export
+
+  function vlq(n) {
+    // variable-length quantity
+    const bytes = [n & 0x7f];
+    n >>= 7;
+    while (n > 0) {
+      bytes.unshift((n & 0x7f) | 0x80);
+      n >>= 7;
+    }
+    return bytes;
+  }
+
+  function str(s) {
+    return [...s].map((c) => c.charCodeAt(0));
+  }
+
+  /** Render the whole progression once and emit a Standard MIDI File (format 1). */
+  function exportMidi(ctxData, pattern, energy, bpm) {
+    const PPQ = 480;
+    const stepTicks = PPQ / 4;
+    const collect = { lh: [], rh: [] };
+    for (let bar = 0; bar < ctxData.totalBars; bar++) {
+      const events = renderBar(ctxData, pattern, bar, energy);
+      for (const ev of events) {
+        const on = Math.round((bar * 16 + ev.step) * stepTicks);
+        const off = on + Math.max(1, Math.round(ev.dur * stepTicks));
+        for (const m of ev.midis) {
+          collect[ev.hand].push({ on, off, midi: m, vel: Math.round(30 + ev.vel * 90) });
+        }
+      }
+    }
+    const songTicks = ctxData.totalBars * 16 * stepTicks;
+
+    function trackBytes(notes, name) {
+      // clip overlapping repeats of the same pitch
+      notes.sort((a, b) => a.on - b.on || a.midi - b.midi);
+      const byPitch = {};
+      for (const n of notes) {
+        const prev = byPitch[n.midi];
+        if (prev && prev.off > n.on) prev.off = Math.max(prev.on + 1, n.on - 2);
+        byPitch[n.midi] = n;
+      }
+      const msgs = [];
+      for (const n of notes) {
+        msgs.push({ t: n.on, data: [0x90, n.midi, n.vel] });
+        msgs.push({ t: Math.min(n.off, songTicks), data: [0x80, n.midi, 0] });
+      }
+      msgs.sort((a, b) => a.t - b.t || a.data[0] - b.data[0]);
+      const out = [];
+      out.push(...vlq(0), 0xff, 0x03, name.length, ...str(name)); // track name
+      out.push(...vlq(0), 0xc0, 0x00); // program: acoustic grand
+      let last = 0;
+      for (const m of msgs) {
+        out.push(...vlq(m.t - last), ...m.data);
+        last = m.t;
+      }
+      out.push(...vlq(songTicks - last), 0xff, 0x2f, 0x00);
+      return out;
+    }
+
+    const tempoTrack = [];
+    const usPerBeat = Math.round(60000000 / bpm);
+    tempoTrack.push(...vlq(0), 0xff, 0x51, 0x03, (usPerBeat >> 16) & 0xff, (usPerBeat >> 8) & 0xff, usPerBeat & 0xff);
+    tempoTrack.push(...vlq(0), 0xff, 0x58, 0x04, 4, 2, 24, 8); // 4/4
+    tempoTrack.push(...vlq(0), 0xff, 0x2f, 0x00);
+
+    function chunk(tag, data) {
+      const len = data.length;
+      return [...str(tag), (len >> 24) & 0xff, (len >> 16) & 0xff, (len >> 8) & 0xff, len & 0xff, ...data];
+    }
+
+    const lh = trackBytes(collect.lh, 'Left Hand');
+    const rh = trackBytes(collect.rh, 'Right Hand');
+    const bytes = [
+      ...chunk('MThd', [0, 1, 0, 3, (PPQ >> 8) & 0xff, PPQ & 0xff]),
+      ...chunk('MTrk', tempoTrack),
+      ...chunk('MTrk', rh),
+      ...chunk('MTrk', lh),
+    ];
+    return new Uint8Array(bytes);
+  }
+
+  const Engine = { STEPS_PER_BAR, buildSegments, computeVoicings, buildContext, renderBar, createPlayer, exportMidi };
+  if (typeof module !== 'undefined' && module.exports) module.exports = Engine;
+  else window.Engine = Engine;
+})();
+
+</script>
+  <script>
+/* Pop Piano Atlas — audio engine.
+ * A tasteful additive piano voice on Web Audio: velocity-sensitive brightness,
+ * register-dependent decay, subtle hammer noise, light room reverb, gentle glue
+ * compression. No samples, no network — everything is synthesized.
+ */
+(function () {
+  'use strict';
+
+  let ctx = null;
+  let master, comp, dryGain, wetGain, reverb;
+  const live = new Set(); // active source nodes for panic stop
+
+  function ensure() {
+    if (ctx) return;
+    ctx = new (window.AudioContext || window.webkitAudioContext)();
+
+    comp = ctx.createDynamicsCompressor();
+    comp.threshold.value = -18;
+    comp.knee.value = 24;
+    comp.ratio.value = 3;
+    comp.attack.value = 0.004;
+    comp.release.value = 0.18;
+
+    master = ctx.createGain();
+    master.gain.value = 1.35;
+
+    // generated impulse response: short warm room
+    reverb = ctx.createConvolver();
+    reverb.buffer = makeImpulse(1.9, 2.6);
+    dryGain = ctx.createGain();
+    dryGain.gain.value = 0.82;
+    wetGain = ctx.createGain();
+    wetGain.gain.value = 0.16;
+
+    dryGain.connect(comp);
+    reverb.connect(wetGain);
+    wetGain.connect(comp);
+    comp.connect(master);
+    master.connect(ctx.destination);
+  }
+
+  function makeImpulse(seconds, decay) {
+    const rate = ctx.sampleRate;
+    const len = Math.floor(rate * seconds);
+    const buf = ctx.createBuffer(2, len, rate);
+    for (let ch = 0; ch < 2; ch++) {
+      const data = buf.getChannelData(ch);
+      for (let i = 0; i < len; i++) {
+        data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, decay);
+      }
+    }
+    return buf;
+  }
+
+  function midiToFreq(m) {
+    return 440 * Math.pow(2, (m - 69) / 12);
+  }
+
+  // partial gains for a piano-ish spectrum; upper partials fade with velocity handled below
+  const PARTIALS = [
+    { mult: 1, gain: 1.0, type: 'triangle' },
+    { mult: 2.001, gain: 0.32, type: 'sine' },
+    { mult: 3.004, gain: 0.14, type: 'sine' },
+    { mult: 4.02, gain: 0.055, type: 'sine' },
+    { mult: 5.05, gain: 0.022, type: 'sine' },
+  ];
+
+  /** Schedule one piano note. t in AudioContext time. dur = held length in seconds. */
+  function playNote(t, midi, vel, dur, hand) {
+    ensure();
+    const f = midiToFreq(midi);
+    const v = Math.max(0.05, Math.min(1, vel));
+
+    // per-note filter: velocity opens brightness, low notes kept darker
+    const lp = ctx.createBiquadFilter();
+    lp.type = 'lowpass';
+    lp.frequency.value = Math.min(9000, 500 + v * v * 5200 + f * 1.6);
+    lp.Q.value = 0.4;
+
+    const amp = ctx.createGain();
+    amp.gain.value = 0;
+    lp.connect(amp);
+    amp.connect(dryGain);
+    amp.connect(reverb);
+
+    // register-dependent natural decay (long bass, short treble), bounded by held dur
+    const natural = Math.max(0.8, 6.5 - (midi - 21) * 0.055);
+    const hold = Math.min(dur, natural);
+    const peak = 0.16 * Math.pow(v, 1.4) * (midi < 48 ? 1.25 : 1.0);
+
+    const t0 = Math.max(t, ctx.currentTime);
+    amp.gain.setValueAtTime(0, t0);
+    amp.gain.linearRampToValueAtTime(peak, t0 + 0.006);
+    // two-stage decay: fast initial settle, then slow singing tail
+    amp.gain.setTargetAtTime(peak * 0.35, t0 + 0.006, 0.09);
+    amp.gain.setTargetAtTime(peak * 0.12, t0 + 0.35, hold * 0.55 + 0.2);
+    // release at note end
+    const tEnd = t0 + hold;
+    amp.gain.setTargetAtTime(0.0001, tEnd, 0.09);
+
+    const stopAt = tEnd + 0.6;
+    const detune = (Math.random() - 0.5) * 3;
+    for (const p of PARTIALS) {
+      const osc = ctx.createOscillator();
+      osc.type = p.type;
+      osc.frequency.value = f * p.mult;
+      osc.detune.value = detune;
+      const g = ctx.createGain();
+      // higher partials die faster and are weaker at low velocity
+      g.gain.value = p.gain * (p.mult === 1 ? 1 : Math.pow(v, 0.8));
+      if (p.mult > 1) g.gain.setTargetAtTime(g.gain.value * 0.25, t0 + 0.05, 0.4 / p.mult);
+      osc.connect(g);
+      g.connect(lp);
+      osc.start(t0);
+      osc.stop(stopAt);
+      live.add(osc);
+      osc.onended = () => live.delete(osc);
+    }
+
+    // hammer thump: a filtered noise tick that sells the attack
+    const nLen = 0.02;
+    const nBuf = ctx.createBuffer(1, Math.ceil(ctx.sampleRate * nLen), ctx.sampleRate);
+    const nd = nBuf.getChannelData(0);
+    for (let i = 0; i < nd.length; i++) nd[i] = (Math.random() * 2 - 1) * (1 - i / nd.length);
+    const noise = ctx.createBufferSource();
+    noise.buffer = nBuf;
+    const nf = ctx.createBiquadFilter();
+    nf.type = 'bandpass';
+    nf.frequency.value = Math.min(4000, f * 3);
+    nf.Q.value = 0.8;
+    const ng = ctx.createGain();
+    ng.gain.value = 0.05 * v;
+    noise.connect(nf);
+    nf.connect(ng);
+    ng.connect(dryGain);
+    noise.start(t0);
+    live.add(noise);
+    noise.onended = () => live.delete(noise);
+  }
+
+  function click(t, accent) {
+    ensure();
+    const osc = ctx.createOscillator();
+    osc.type = 'square';
+    osc.frequency.value = accent ? 1800 : 1200;
+    const g = ctx.createGain();
+    const t0 = Math.max(t, ctx.currentTime);
+    g.gain.setValueAtTime(accent ? 0.1 : 0.055, t0);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.05);
+    osc.connect(g);
+    g.connect(comp);
+    osc.start(t0);
+    osc.stop(t0 + 0.06);
+    live.add(osc);
+    osc.onended = () => live.delete(osc);
+  }
+
+  function allOff() {
+    if (!ctx) return;
+    const t = ctx.currentTime;
+    for (const node of live) {
+      try {
+        node.stop(t + 0.05);
+      } catch (e) {
+        /* already stopped */
+      }
+    }
+    live.clear();
+  }
+
+  const AudioOut = {
+    ensure,
+    resume() {
+      ensure();
+      if (ctx.state === 'suspended') ctx.resume();
+    },
+    now() {
+      ensure();
+      return ctx.currentTime;
+    },
+    playNote,
+    click,
+    allOff,
+    // test/debug hooks
+    getContext() {
+      ensure();
+      return ctx;
+    },
+    getMaster() {
+      ensure();
+      return master;
+    },
+  };
+
+  window.AudioOut = AudioOut;
+})();
+
+</script>
+  <script>
+/* Pop Piano Atlas — UI wiring: deck, stage, keyboard viz, rhythm map, transport. */
+(function () {
+  'use strict';
+
+  const T = window.Theory;
+  const A = window.Atlas;
+  const E = window.Engine;
+
+  const $ = (id) => document.getElementById(id);
+
+  const player = E.createPlayer(() => window.AudioOut);
+
+  let currentPattern = null; // the pattern the UI is presenting (may be queued)
+  let currentPresetId = 'axis';
+
+  // ------------------------------------------------------------------ deck
+
+  const cardEls = {};
+
+  function glyphRow(events, cls) {
+    const row = document.createElement('div');
+    row.className = 'glyph-row ' + cls;
+    for (const ev of events) {
+      const span = document.createElement('span');
+      const s = Math.min(ev.s, 15.5);
+      const d = Math.max(0.8, Math.min(ev.d, 16 - s));
+      span.style.left = (s / 16) * 100 + '%';
+      span.style.width = (d / 16) * 100 + '%';
+      span.style.opacity = String(0.4 + (ev.v != null ? ev.v : 0.7) * 0.6);
+      row.appendChild(span);
+    }
+    return row;
+  }
+
+  function buildDeck() {
+    const deck = $('deck');
+    for (const group of A.GROUPS) {
+      const head = document.createElement('div');
+      head.className = 'group-head';
+      head.innerHTML = `<h2>${group.name}</h2><p>${group.blurb}</p>`;
+      deck.appendChild(head);
+      for (const p of A.PATTERNS.filter((x) => x.group === group.id)) {
+        const card = document.createElement('button');
+        card.className = 'card';
+        card.setAttribute('aria-label', p.name);
+        const dots = '●'.repeat(p.difficulty) + '○'.repeat(3 - p.difficulty);
+        card.innerHTML = `
+          <div class="card-top">
+            <span class="card-name">${p.name}</span>
+            ${p.feel === 'swing' ? '<span class="badge swing">swing</span>' : ''}
+            <span class="card-dots"><span class="f">${'●'.repeat(p.difficulty)}</span>${'○'.repeat(3 - p.difficulty)}</span>
+          </div>
+          <div class="card-tag">${p.tag}</div>`;
+        const glyph = document.createElement('div');
+        glyph.className = 'card-glyph';
+        glyph.appendChild(glyphRow(p.rh, 'rh'));
+        glyph.appendChild(glyphRow(p.lh, 'lh'));
+        card.appendChild(glyph);
+        card.addEventListener('click', () => selectPattern(p, true));
+        deck.appendChild(card);
+        cardEls[p.id] = card;
+      }
+    }
+  }
+
+  function markCards() {
+    const queued = player.state.pendingPattern;
+    const active = player.state.pattern;
+    for (const p of A.PATTERNS) {
+      const el = cardEls[p.id];
+      el.classList.toggle('selected', !!active && active.id === p.id && !queued);
+      el.classList.toggle('queued', !!queued && queued.id === p.id);
+      if (!queued && active && active.id === p.id) el.classList.add('selected');
+    }
+    if (queued) cardEls[queued.id].classList.add('queued');
+  }
+
+  function selectPattern(p, autoplay) {
+    currentPattern = p;
+    player.setPattern(p);
+    // when idle, adopt the pattern's natural tempo so it always auditions at a musical speed
+    if (!player.state.playing && p.bpm) {
+      player.state.bpm = p.bpm;
+      $('tempo').value = p.bpm;
+      $('bpm').textContent = p.bpm + ' bpm';
+    }
+    markCards();
+    renderStage(p);
+    if (autoplay && !player.state.playing) startPlayback();
+    if (!player.state.playing) previewOnKeyboard(p);
+  }
+
+  /** When stopped: light the pattern's beat-1 notes so the hand shapes are visible before play. */
+  function previewOnKeyboard(p) {
+    for (const m in keyEls) keyEls[m].classList.remove('lit-lh', 'lit-rh');
+    const ctx = player.state.ctxData;
+    if (!ctx) return;
+    const events = E.renderBar(ctx, p, 0, player.state.energy);
+    $('kbd').classList.add('preview');
+    const notes = { lh: new Set(), rh: new Set() };
+    for (const ev of events) {
+      if (ev.step >= 4) continue; // first beat only
+      for (const m of ev.midis) {
+        if (keyEls[m]) keyEls[m].classList.add(ev.hand === 'lh' ? 'lit-lh' : 'lit-rh');
+        notes[ev.hand].add(m);
+      }
+    }
+    const names = (set) => [...set].sort((a, b) => a - b).map(T.midiToName).join(' ');
+    const sym = ctx.segments[0].chord.symbol;
+    $('under-fingers').innerHTML =
+      `beat 1 of ${sym}: <b class="l">${names(notes.lh) || '—'}</b> · <b class="r">${names(notes.rh) || '—'}</b>`;
+  }
+
+  // ------------------------------------------------------------------ stage: header + learn
+
+  function renderStage(p) {
+    $('pat-name').textContent = p.name;
+    $('pat-tag').textContent = p.tag;
+    const meta = $('pat-meta');
+    meta.innerHTML = '';
+    const bits = [];
+    bits.push(`<span class="badge">difficulty ${'●'.repeat(p.difficulty)}${'○'.repeat(3 - p.difficulty)}</span>`);
+    bits.push(`<span class="badge">energy ${p.energy}/5</span>`);
+    if (p.bpm) bits.push(`<span class="badge">feels best ~${p.bpm} bpm</span>`);
+    if (p.feel === 'swing') bits.push('<span class="badge swing">swing 8ths</span>');
+    if (p.color) bits.push(`<span class="badge">${p.color} colour</span>`);
+    if (p.pedal === 'chord') bits.push('<span class="badge">pedal per chord</span>');
+    meta.innerHTML = bits.join('');
+
+    $('how-lh').textContent = p.how.lh;
+    $('how-rh').textContent = p.how.rh;
+    $('why').textContent = p.why;
+    $('use').textContent = p.use;
+    $('songs').innerHTML = p.songs.map((s) => `<li>${s}</li>`).join('');
+    $('tip').textContent = p.tip;
+    renderRhythmMap(p);
+  }
+
+  // ------------------------------------------------------------------ rhythm map
+
+  function renderRhythmMap(p) {
+    for (const hand of ['rh', 'lh']) {
+      const lane = $('lane-' + hand);
+      lane.innerHTML = '';
+      for (let b = 1; b < 16; b++) {
+        const line = document.createElement('div');
+        line.className = 'beatline' + (b % 4 === 0 ? ' strong' : '');
+        line.style.left = (b / 16) * 100 + '%';
+        lane.appendChild(line);
+      }
+      for (const ev of p[hand]) {
+        const hit = document.createElement('div');
+        hit.className = 'hit ' + hand;
+        const s = ev.s + (p.feel === 'swing' && ev.s % 4 === 2 ? 0.66 : 0);
+        const d = Math.max(0.7, Math.min(ev.d, 16 - s));
+        hit.style.left = (s / 16) * 100 + '%';
+        hit.style.width = (d / 16) * 100 + '%';
+        hit.style.opacity = String(0.45 + (ev.v != null ? ev.v : 0.7) * 0.55);
+        lane.appendChild(hit);
+      }
+    }
+    const count = $('rmap-count');
+    count.innerHTML = '';
+    const labels = ['1', 'e', '&', 'a', '2', 'e', '&', 'a', '3', 'e', '&', 'a', '4', 'e', '&', 'a'];
+    labels.forEach((l, i) => {
+      const s = document.createElement('span');
+      s.textContent = l;
+      if (i % 4 === 0) s.className = 'b';
+      count.appendChild(s);
+    });
+    $('rmap-note').textContent =
+      p.feel === 'swing' ? 'off-beats swing late — the grid shows where they actually land' : 'block length = how long the note is held';
+  }
+
+  // ------------------------------------------------------------------ keyboard viz
+
+  const KEY_LO = 33; // A1
+  const KEY_HI = 96; // C7
+  const WHITE_PCS = [0, 2, 4, 5, 7, 9, 11];
+  const keyEls = {};
+
+  function buildKeyboard() {
+    const svg = $('kbd');
+    svg.removeAttribute('preserveAspectRatio');
+    const whites = [];
+    for (let m = KEY_LO; m <= KEY_HI; m++) if (WHITE_PCS.includes(m % 12)) whites.push(m);
+    const W = 20;
+    const width = whites.length * W;
+    const height = 96;
+    svg.setAttribute('viewBox', `0 0 ${width} ${height}`);
+    const xOfWhite = {};
+    whites.forEach((m, i) => (xOfWhite[m] = i * W));
+    // white keys first
+    for (const m of whites) {
+      const r = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+      r.setAttribute('x', xOfWhite[m]);
+      r.setAttribute('y', 0);
+      r.setAttribute('width', W);
+      r.setAttribute('height', height);
+      r.setAttribute('rx', 1.5);
+      r.setAttribute('class', 'white');
+      svg.appendChild(r);
+      keyEls[m] = r;
+    }
+    // black keys on top
+    for (let m = KEY_LO; m <= KEY_HI; m++) {
+      if (WHITE_PCS.includes(m % 12)) continue;
+      const below = m - 1; // white key below
+      const x = xOfWhite[below] + W * 0.64;
+      const r = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+      r.setAttribute('x', x);
+      r.setAttribute('y', 0);
+      r.setAttribute('width', W * 0.62);
+      r.setAttribute('height', height * 0.6);
+      r.setAttribute('rx', 1.5);
+      r.setAttribute('class', 'black');
+      svg.appendChild(r);
+      keyEls[m] = r;
+    }
+    // middle C marker
+    const dot = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+    dot.setAttribute('cx', xOfWhite[60] + W / 2);
+    dot.setAttribute('cy', height - 8);
+    dot.setAttribute('r', 2.4);
+    dot.setAttribute('fill', '#b8b0a0');
+    svg.appendChild(dot);
+  }
+
+  // ------------------------------------------------------------------ progression strip
+
+  function renderBars(ctx) {
+    const wrap = $('bars');
+    wrap.innerHTML = '';
+    ctx.bars.forEach((chords, i) => {
+      const chip = document.createElement('div');
+      chip.className = 'bar-chip';
+      chip.dataset.bar = i;
+      const sym = chords.map((c) => c.symbol).join('  ');
+      const segIdx = ctx.segments.findIndex((s) => s.bar === i);
+      const rns = ctx.segments.filter((s) => s.bar === i).map((s, j) => ctx.romans[segIdx + j]);
+      chip.innerHTML = `<div class="sym">${sym}</div><div class="rn">${rns.join(' · ')}</div>`;
+      wrap.appendChild(chip);
+    });
+    $('keybadge').innerHTML = `key of <b>${T.keyName(ctx.tonic)}</b>`;
+  }
+
+  function applyProgression(text, fromPreset) {
+    const input = $('prog');
+    const hint = $('proghint');
+    const res = player.setSong(text);
+    if (!res.ok) {
+      input.classList.add('invalid');
+      hint.textContent = res.error;
+      hint.classList.add('error');
+      return false;
+    }
+    input.classList.remove('invalid');
+    hint.classList.remove('error');
+    hint.textContent = fromPreset
+      ? A.PRESETS.find((p) => p.id === currentPresetId)?.note || ''
+      : 'Type any chords — triads, m7, sus2/4, add9, slash bass like G/B — then press Enter.';
+    renderBars(res);
+    if (!player.state.playing && currentPattern) previewOnKeyboard(currentPattern);
+    return true;
+  }
+
+  function buildPresets() {
+    const sel = $('preset');
+    for (const p of A.PRESETS) {
+      const opt = document.createElement('option');
+      opt.value = p.id;
+      opt.textContent = p.name;
+      sel.appendChild(opt);
+    }
+    const custom = document.createElement('option');
+    custom.value = '_custom';
+    custom.textContent = 'Custom…';
+    sel.appendChild(custom);
+    sel.addEventListener('change', () => {
+      const p = A.PRESETS.find((x) => x.id === sel.value);
+      if (!p) return;
+      currentPresetId = p.id;
+      $('prog').value = p.text;
+      applyProgression(p.text, true);
+    });
+  }
+
+  function transpose(semis) {
+    const input = $('prog');
+    const parts = input.value.split('|').map((cell) =>
+      cell
+        .trim()
+        .split(/\s+/)
+        .filter(Boolean)
+        .map((tok) => T.transposeSymbol(tok, semis))
+        .join(' ')
+    );
+    const text = parts.filter((p) => p.length).join(' | ');
+    input.value = text;
+    $('preset').value = '_custom';
+    currentPresetId = '_custom';
+    applyProgression(text, false);
+  }
+
+  // ------------------------------------------------------------------ transport
+
+  function startPlayback() {
+    $('under-fingers').textContent = '';
+    $('kbd').classList.remove('preview');
+    for (const m in keyEls) keyEls[m].classList.remove('lit-lh', 'lit-rh');
+    player.play();
+    $('play').classList.add('playing');
+    $('play-icon').setAttribute('d', 'M3 3h4v10H3zM9 3h4v10H9z');
+  }
+
+  function stopPlayback() {
+    player.stop();
+    $('play').classList.remove('playing');
+    $('play-icon').setAttribute('d', 'M4 2l10 6-10 6z');
+    document.querySelectorAll('.bar-chip.now').forEach((el) => el.classList.remove('now'));
+    $('rmap-ph').style.opacity = '0';
+    markCards();
+    if (currentPattern) previewOnKeyboard(currentPattern);
+  }
+
+  function wireTransport() {
+    $('play').addEventListener('click', () => (player.state.playing ? stopPlayback() : startPlayback()));
+
+    $('tempo').addEventListener('input', (e) => {
+      player.state.bpm = +e.target.value;
+      $('bpm').textContent = e.target.value + ' bpm';
+    });
+
+    for (const [segId, key] of [['energy', 'energy'], ['hands', 'hands']]) {
+      $(segId).addEventListener('click', (e) => {
+        const btn = e.target.closest('button');
+        if (!btn) return;
+        player.state[key] = btn.dataset.v;
+        $(segId).querySelectorAll('button').forEach((b) => b.classList.toggle('on', b === btn));
+      });
+    }
+
+    $('metro').addEventListener('click', () => {
+      player.state.metronome = !player.state.metronome;
+      $('metro').classList.toggle('on', player.state.metronome);
+    });
+    $('countin').addEventListener('click', () => {
+      player.state.countIn = !player.state.countIn;
+      $('countin').classList.toggle('on', player.state.countIn);
+    });
+
+    $('midi').addEventListener('click', () => {
+      const pat = player.state.pendingPattern || player.state.pattern;
+      if (!pat || !player.state.ctxData) return;
+      const bytes = E.exportMidi(player.state.ctxData, pat, player.state.energy, player.state.bpm);
+      const blob = new Blob([bytes], { type: 'audio/midi' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `atlas-${currentPresetId === '_custom' ? 'custom' : currentPresetId}-${pat.id}.mid`;
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+    });
+
+    const prog = $('prog');
+    prog.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        $('preset').value = '_custom';
+        currentPresetId = '_custom';
+        applyProgression(prog.value, false);
+        prog.blur();
+      }
+    });
+    $('tr-up').addEventListener('click', () => transpose(1));
+    $('tr-down').addEventListener('click', () => transpose(-1));
+
+    document.addEventListener('keydown', (e) => {
+      const tag = document.activeElement && document.activeElement.tagName;
+      if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA') return;
+      if (e.code === 'Space') {
+        e.preventDefault();
+        player.state.playing ? stopPlayback() : startPlayback();
+      } else if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
+        e.preventDefault();
+        const dir = e.key === 'ArrowRight' ? 1 : -1;
+        const idx = A.PATTERNS.findIndex((p) => p.id === (currentPattern ? currentPattern.id : ''));
+        const next = A.PATTERNS[(idx + dir + A.PATTERNS.length) % A.PATTERNS.length];
+        selectPattern(next, false);
+        cardEls[next.id].scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+      }
+    });
+  }
+
+  // ------------------------------------------------------------------ animation loop
+
+  function animate() {
+    const audio = window.AudioOut;
+    if (player.state.playing && audio) {
+      const now = audio.now();
+      // keyboard lights
+      const lit = {};
+      for (const v of player.state.viz) {
+        if (v.tOn <= now && now < v.tOff) lit[v.midi] = v.hand;
+      }
+      for (const m in keyEls) {
+        const el = keyEls[m];
+        const h = lit[m];
+        el.classList.toggle('lit-lh', h === 'lh');
+        el.classList.toggle('lit-rh', h === 'rh');
+      }
+      // current beat → bar chip + playhead
+      let cur = null;
+      for (const b of player.state.beats) if (b.t <= now) cur = b;
+      if (cur && cur.bar >= 0) {
+        document.querySelectorAll('.bar-chip').forEach((el) => {
+          el.classList.toggle('now', +el.dataset.bar === cur.bar);
+        });
+        const beatDur = 60 / player.state.bpm;
+        const frac = Math.min(1, (now - cur.t) / beatDur);
+        const pos = (cur.beat + frac) / 4;
+        const lane = $('lane-rh');
+        const rmap = $('rmap');
+        const laneBox = lane.getBoundingClientRect();
+        const rmapBox = rmap.getBoundingClientRect();
+        const ph = $('rmap-ph');
+        ph.style.opacity = '0.5';
+        ph.style.left = laneBox.left - rmapBox.left + pos * laneBox.width + 'px';
+      }
+    }
+    requestAnimationFrame(animate);
+  }
+
+  // ------------------------------------------------------------------ init
+
+  player.on('swap', () => markCards());
+  player.on('stop', () => markCards());
+
+  buildDeck();
+  buildPresets();
+  buildKeyboard();
+  wireTransport();
+
+  $('preset').value = 'axis';
+  $('prog').value = A.PRESETS[0].text;
+  applyProgression(A.PRESETS[0].text, true);
+  selectPattern(A.PATTERNS[0], false);
+  requestAnimationFrame(animate);
+})();
+
+</script>
+</body>
+</html>
