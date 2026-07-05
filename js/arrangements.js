@@ -8,8 +8,12 @@
  *   pattern — a pattern id from the atlas          energy — 1 hush … 5 finale
  *   loops   — times through the progression (default 1)
  *   dyn     — [startMul, endMul] velocity arc across the section
- *   fill    — 'walkup' (LH climbs into the next root) | 'lift' (RH sus4 push +
- *             anticipated chord) | 'walkup+lift' — played in the section's last bar
+ *   fill    — played in the section's last bar:
+ *             'walkup' (LH climbs into the next root) · 'lift' (RH sus4 push +
+ *             anticipated chord) · 'walkup+lift' · 'pianoman' (RH dyad fill,
+ *             fifth on top) · 'stab' (stop-time: beat 1, then silence)
+ *   colour  — 'subtle' | 'rich': auto passing chords for this section
+ *   voicing — colour override ('add9'…): brighten the chords on later sections
  */
 (function () {
   'use strict';
@@ -56,10 +60,10 @@
       why:
         'Rock piano is an escalation of pulse: quarters become pushed 8ths become relentless octaves. The walk-up fills are the tell — that little 6̂–7̂ climb into the next root is how a player signals “hold on, here it comes” without a drummer.',
       sections: [
-        { name: 'Verse', pattern: 'quarter-pulse', energy: 2, dyn: [0.95, 1.0] },
+        { name: 'Verse', pattern: 'quarter-pulse', energy: 2, dyn: [0.95, 1.0], fill: 'pianoman' },
         { name: 'Pre-chorus', pattern: 'push', energy: 3, dyn: [1.0, 1.08], fill: 'walkup' },
         { name: 'Chorus', pattern: 'folds-drive', energy: 4, dyn: [1.02, 1.08], fill: 'walkup' },
-        { name: 'Last chorus', pattern: 'anthem', energy: 5, dyn: [1.05, 1.12] },
+        { name: 'Last chorus', pattern: 'anthem', energy: 5, dyn: [1.05, 1.12], voicing: 'add9' },
       ],
     },
     {
@@ -87,10 +91,76 @@
         'Gospel piano moves the congregation by tension and release: backbeat comping makes the pulse physical, the ’50s walk keeps the floor moving, and the sus chorus leans on every chord before letting it land. The walk-up fill is pure church — the bass always announces the next chord.',
       sections: [
         { name: 'Verse', pattern: 'pillars', energy: 2, dyn: [0.92, 1.0] },
-        { name: 'Groove', pattern: 'backbeat', energy: 3, dyn: [0.98, 1.04] },
+        { name: 'Groove', pattern: 'backbeat', energy: 3, dyn: [0.98, 1.04], colour: 'subtle' },
         { name: 'Walk', pattern: 'fifties-walk', energy: 3, dyn: [1.0, 1.06], fill: 'walkup' },
-        { name: 'Chorus', pattern: 'gospel-sus', energy: 4, dyn: [1.02, 1.1], fill: 'walkup+lift' },
-        { name: 'Benediction', pattern: 'bedrock', energy: 2, dyn: [0.9, 0.78] },
+        { name: 'Chorus', pattern: 'gospel-sus', energy: 4, dyn: [1.02, 1.1], colour: 'rich', fill: 'walkup+lift' },
+        { name: 'Benediction', pattern: 'bedrock', energy: 2, dyn: [0.9, 0.78], colour: 'rich' },
+      ],
+    },
+    {
+      id: 'lean-on-it',
+      name: 'Lean On It',
+      influence: 'Bill Withers · 70s soul piano',
+      bpm: 84,
+      blurb: 'Toggle, push, woodchop — one accent at a time, then stop-time silence before the drop.',
+      why:
+        'Soul piano builds by shifting where the weight falls, not by adding notes: the toggle rocks, the middle push leans, and the woodchop commits to every 8th. The stop-time bar — one hit, then nothing — is the oldest trick for making the next downbeat feel twice as loud. Gospel passing chords arrive with the amen.',
+      sections: [
+        { name: 'Verse', pattern: 'pillars', energy: 2, dyn: [0.92, 1.0] },
+        { name: 'Toggle', pattern: 'toggle', energy: 3, dyn: [0.96, 1.02] },
+        { name: 'Push', pattern: 'push-middle', energy: 3, dyn: [1.0, 1.08], colour: 'subtle', fill: 'stab' },
+        { name: 'Chorus', pattern: 'woodchop', energy: 4, dyn: [1.02, 1.1], fill: 'walkup' },
+        { name: 'Amen', pattern: 'gospel-sus', energy: 3, dyn: [0.98, 0.9], colour: 'rich' },
+        { name: 'Outro', pattern: 'bedrock', energy: 1, dyn: [0.88, 0.72] },
+      ],
+    },
+    {
+      id: 'rocket-fuel',
+      name: 'Rocket Fuel',
+      influence: 'Elton John · huge chords',
+      bpm: 96,
+      blurb: 'From a whispered bloom to the boxed-in wall of sound. Glasses optional.',
+      why:
+        'The Elton arc is about register and doubling, not speed: the verse floats, the 1-5-8 roll adds the harp, and then the box voicing frames every chord in its own octave while the left hand goes to work. The Piano Man fill signs the postcards between sections; passing chords carry the bass line home.',
+      sections: [
+        { name: 'Intro', pattern: 'late-bloom', energy: 1, dyn: [0.85, 0.95] },
+        { name: 'Verse', pattern: 'roll-158', energy: 2, dyn: [0.92, 1.0], fill: 'pianoman' },
+        { name: 'Lift', pattern: 'push', energy: 3, dyn: [0.98, 1.08], colour: 'subtle', fill: 'lift' },
+        { name: 'Chorus', pattern: 'elton-box', energy: 4, dyn: [1.02, 1.1], colour: 'subtle' },
+        { name: 'Encore', pattern: 'anthem', energy: 5, dyn: [1.05, 1.12], voicing: 'add9', fill: 'stab' },
+        { name: 'Outro', pattern: 'late-bloom', energy: 1, dyn: [0.88, 0.72] },
+      ],
+    },
+    {
+      id: 'night-opera',
+      name: 'Night at the Opera',
+      influence: 'Queen · Freddie Mercury',
+      bpm: 108,
+      blurb: 'Candlelit crossover to woodchop stabs to a finale that ends mid-air.',
+      why:
+        'Freddie’s arc is theatre: begin alone at the piano (the crossover, sixths singing on top), tighten into the woodchop’s percussive stabs, unleash the driving octaves, and end the loop with a stop-time chord that hangs in silence before the intro returns. Melodrama, engineered.',
+      sections: [
+        { name: 'Candlelight', pattern: 'crossover', energy: 1, dyn: [0.85, 0.95] },
+        { name: 'Verse', pattern: 'crossover', energy: 2, dyn: [0.95, 1.02], fill: 'lift' },
+        { name: 'Woodchop', pattern: 'woodchop', energy: 3, dyn: [0.98, 1.05], colour: 'subtle' },
+        { name: 'Drive', pattern: 'folds-drive', energy: 4, dyn: [1.02, 1.1], fill: 'walkup' },
+        { name: 'Finale', pattern: 'anthem', energy: 5, dyn: [1.05, 1.14], voicing: 'add9', fill: 'stab' },
+      ],
+    },
+    {
+      id: 'mirrorball',
+      name: 'Mirrorball',
+      influence: 'Disco · four-on-the-floor pop',
+      bpm: 116,
+      blurb: 'Off-beats to full disco pump — the same chords, spinning faster and shinier.',
+      why:
+        'Dance-floor piano is about the pocket: the skank teaches your hands where the air is, the disco pump fills the floor with octaves, and the snap tightens everything to the 16th grid. The last chorus brightens every chord with an added 9th — the mirrorball turning on.',
+      sections: [
+        { name: 'Warm-up', pattern: 'offbeats', energy: 2, dyn: [0.94, 1.0] },
+        { name: 'Floor', pattern: 'disco-pump', energy: 3, dyn: [0.98, 1.06] },
+        { name: 'Snap', pattern: 'snap-16', energy: 4, dyn: [1.0, 1.08], fill: 'pianoman' },
+        { name: 'Lights', pattern: 'disco-pump', energy: 5, dyn: [1.05, 1.12], voicing: 'add9', fill: 'stab' },
+        { name: 'Fade', pattern: 'first-arpeggio', energy: 1, dyn: [0.88, 0.7] },
       ],
     },
     {

@@ -153,6 +153,7 @@
       case 'R': return root;
       case '3': return root + third;
       case '5': return root + fifth;
+      case '6': return root + (chord.isMinor ? 10 : 9); // 6th colour; on minor chords the 7th sings instead
       case '8': return root + 12;
       case '10': return root + 12 + third;
       case '12': return root + 12 + fifth;
@@ -191,17 +192,55 @@
     return out;
   }
 
+  /** Connector (passing chord) into the NEXT bar's first chord, if one applies here.
+   *  Patterns that pedal (static bass is their point) or push their own anticipations
+   *  into the barline already own that moment — no connector on top. */
+  function connectorForBar(ctx, pattern, bar, mode) {
+    if (pattern.lh.some((e) => e.n.includes && e.n.includes('pedal'))) return null;
+    const tailAnticipates = [...pattern.lh, ...pattern.rh].some((e) => e.anticipate && e.s >= 12);
+    if (tailAnticipates) return null;
+    if (!ctx.connCache) ctx.connCache = {};
+    const key = mode + ':' + (bar % ctx.totalBars);
+    if (!(key in ctx.connCache)) {
+      const cur = ctx.segments[segIndexFor(ctx, bar, 15)].chord;
+      const next = ctx.segments[segIndexFor(ctx, bar + 1, 0)].chord;
+      ctx.connCache[key] = T.connectorFor(cur, next, mode);
+    }
+    return ctx.connCache[key];
+  }
+
+  /** Voice a connector chord close to the current segment's voicing (cached). */
+  function voicingFor(ctx, vs, chord, segIdx) {
+    if (!vs.connVoicings) vs.connVoicings = {};
+    const key = segIdx + ':' + chord.symbol;
+    if (!(key in vs.connVoicings)) {
+      vs.connVoicings[key] = T.voiceChord(chord, vs.voicings[segIdx], null);
+    }
+    return vs.connVoicings[key];
+  }
+
+  function nearestPitch(voicing, target) {
+    let best = voicing[0];
+    for (const m of voicing) if (Math.abs(m - target) < Math.abs(best - target)) best = m;
+    return best;
+  }
+
   /**
    * Render one bar into playable events.
    * Returns [{ step, dur, midis, vel, hand }] — step/dur in 16th steps (step may be fractional after swing).
    *
    * `energy`: 'verse' | 'chorus' | 1..5 — a five-rung dynamic ladder. 4+ adds octave
    * doublings (the classic chorus lift); 1 pulls everything back to a hush.
-   * `opts` (all optional, used by arrangements):
-   *   velMul — extra velocity multiplier for section dynamics arcs
-   *   fill   — { type: 'walkup' | 'lift' | 'walkup+lift', targetPc } applied to the
-   *            bar's tail: LH walks up into the next section's root; RH pushes a
-   *            sus4 colour and anticipates the coming chord before the barline.
+   * `opts` (all optional, used by arrangements and the colour control):
+   *   velMul        — extra velocity multiplier for section dynamics arcs
+   *   fill          — { type, targetPc }: 'walkup' (LH climbs into the next root),
+   *                   'lift' (RH sus4 push + anticipation), 'walkup+lift',
+   *                   'pianoman' (RH dyad fill, fifth fixed on top), or
+   *                   'stab' (stop-time: beat 1 hits, then silence)
+   *   colour        — 'off' | 'subtle' | 'rich': auto passing chords on beat 4
+   *                   before harmony changes (see Theory.connectorFor)
+   *   colorOverride — voicing colour ('add9'…) replacing the pattern's own, so
+   *                   arrangements can brighten chords on later sections
    */
   function renderBar(ctx, pattern, barIndex, energy, opts) {
     const events = [];
@@ -210,7 +249,7 @@
     const chorus = level >= 4;
     const split = barIsSplit(ctx, bar);
     const seg1Idx = segIndexFor(ctx, bar, 0);
-    const vs = voicingSet(ctx, pattern.color);
+    const vs = voicingSet(ctx, (opts && opts.colorOverride) || pattern.color);
     const fill = opts && opts.fill ? opts.fill : null;
 
     // fills reshape the bar's tail before rendering, so anticipation/segment
@@ -281,6 +320,12 @@
         let midis;
         if (ev.n === 'anchor') {
           midis = anchorNotes(ctx.tonic);
+        } else if (ev.n === 'box') {
+          // the Elton box: the voicing's top note doubled an octave below —
+          // outer octave "boxing in" the harmony makes any triad sound huge
+          const base = ev.mod === 'sus4' ? susVoicing(ctx, vs, piece.segIdx) : vs.voicings[piece.segIdx];
+          const top = base[base.length - 1];
+          midis = [...new Set([top - 12, ...base])].sort((a, b) => a - b);
         } else if (ev.mod === 'sus4') {
           midis = susVoicing(ctx, vs, piece.segIdx).slice();
         } else {
@@ -292,9 +337,26 @@
           else if (ev.n && ev.n.arp) midis = [arpNote(ev.n.arp, chord)];
           else midis = v.slice();
         }
-        if (chorus && (ev.n === 'chord' || ev.mod === 'sus4')) {
+        if (chorus && (ev.n === 'chord' || ev.n === 'box' || ev.mod === 'sus4')) {
           const top = midis[midis.length - 1];
           if (top + 12 <= 88) midis = [...midis, top + 12];
+        }
+        // gospel grace slide: a soft chromatic crush into the major third, played
+        // just ahead of the hit — the ♭3→3 ornament that says "player, not playback"
+        if (ev.grace && !piece.reattack) {
+          const third = midis.find((m) => (m - chord.rootPc + 1200) % 12 === 4);
+          if (third) {
+            events.push({
+              step: Math.max(0, piece.step - 0.4),
+              dur: 0.5,
+              midis: [third - 1],
+              vel: (ev.v != null ? ev.v : 0.7) * 0.4,
+              hand: 'rh',
+              segIdx: piece.segIdx,
+              grace: true,
+              noRing: true,
+            });
+          }
         }
         const vel = (ev.v != null ? ev.v : 0.7) * (piece.reattack ? 0.85 : 1);
         events.push({
@@ -310,6 +372,112 @@
       }
     }
 
+    // ---- Piano Man fill: RH dyad cells, the fifth fixed on top while the lower
+    // voice walks third → root, closing with a pickup dyad on the coming chord
+    if (fill && /pianoman/.test(fill.type)) {
+      for (let i = events.length - 1; i >= 0; i--) {
+        const e = events[i];
+        if (e.hand !== 'rh' || e.anticipate || e.grace) continue;
+        if (e.step >= 10) events.splice(i, 1);
+        else if (e.step + e.dur > 10) {
+          e.dur = 10 - e.step;
+          e.noRing = true;
+        }
+      }
+      const lastSegIdx = segIndexFor(ctx, bar, 15);
+      const nextSegIdx = segIndexFor(ctx, bar + 1, 0);
+      const cur = ctx.segments[lastSegIdx].chord;
+      const next = ctx.segments[nextSegIdx].chord;
+      const top = arpNote('12', cur);
+      events.push({ step: 10, dur: 2, midis: [arpNote('10', cur), top], vel: 0.58, hand: 'rh', segIdx: lastSegIdx, fill: true });
+      events.push({ step: 12, dur: 2, midis: [arpNote('8', cur), top], vel: 0.62, hand: 'rh', segIdx: lastSegIdx, fill: true });
+      events.push({
+        step: 14,
+        dur: 2,
+        midis: [arpNote('10', next), arpNote('12', next)],
+        vel: 0.6,
+        hand: 'rh',
+        segIdx: nextSegIdx,
+        intoNextBar: true,
+        fill: true,
+      });
+    }
+
+    // ---- auto passing chords ("colour"): on the last beat before the harmony
+    // moves, the bass walks — an inversion, a secondary dominant's leading tone,
+    // or a chromatic diminished — exactly as the gospel/pop playbook prescribes.
+    const colour = opts && opts.colour;
+    if (colour && colour !== 'off' && !fill) {
+      const conn = connectorForBar(ctx, pattern, bar, colour);
+      if (conn) {
+        const lastSegIdx = segIndexFor(ctx, bar, 15);
+        for (let i = events.length - 1; i >= 0; i--) {
+          const e = events[i];
+          if (e.anticipate || e.grace) continue;
+          if (e.hand === 'lh') {
+            if (e.step >= 12) events.splice(i, 1);
+            else if (e.step + e.dur > 12) {
+              e.dur = 12 - e.step;
+              e.noRing = true;
+            }
+          }
+        }
+        events.push({
+          step: 12,
+          dur: 4,
+          midis: [T.bassMidi(conn.chord.bassPc, T.RENDER.lhTargetRoot + 2)],
+          vel: 0.64,
+          hand: 'lh',
+          segIdx: lastSegIdx,
+          connector: true,
+        });
+        // walkup keeps the same harmony (only the bass moves); the chromatic kinds
+        // re-voice any right-hand tail hit — or add a soft shell when the pattern
+        // holds through beat 4, so the passing harmony is actually heard
+        if (conn.kind !== 'walkup') {
+          const connVoicing = voicingFor(ctx, vs, conn.chord, lastSegIdx);
+          let retargeted = false;
+          for (const e of events) {
+            if (e.hand === 'rh' && !e.anticipate && !e.grace && !e.fill && e.step >= 12) {
+              e.midis = e.midis.length > 1 ? connVoicing.slice() : [nearestPitch(connVoicing, e.midis[0])];
+              e.connector = true;
+              retargeted = true;
+            }
+          }
+          if (!retargeted && (conn.kind === 'dominant' || conn.kind === 'dim')) {
+            for (const e of events) {
+              if (e.hand === 'rh' && !e.grace && !e.anticipate && e.step < 12 && e.step + e.dur > 12) {
+                e.dur = 12 - e.step;
+                e.noRing = true;
+              }
+            }
+            events.push({
+              step: 12,
+              dur: 4,
+              midis: [connVoicing[0], connVoicing[connVoicing.length - 1]],
+              vel: 0.5,
+              hand: 'rh',
+              segIdx: lastSegIdx,
+              connector: true,
+            });
+          }
+        }
+      }
+    }
+
+    // ---- stop-time stab: beat 1 lands, then silence — the oldest drama in gospel
+    if (fill && fill.type === 'stab') {
+      for (let i = events.length - 1; i >= 0; i--) {
+        const e = events[i];
+        if (e.step >= 4) events.splice(i, 1);
+        else {
+          e.dur = Math.min(e.dur, 6);
+          e.vel = Math.min(1, e.vel * 1.18);
+          e.noRing = true;
+        }
+      }
+    }
+
     // ---- energy velocity shaping (five-rung ladder × optional section arc)
     const velScale = ENERGY_VEL[level] * (opts && opts.velMul ? opts.velMul : 1);
     for (const ev of events) ev.vel = Math.max(0.12, Math.min(1, ev.vel * velScale));
@@ -317,6 +485,7 @@
     // ---- pedal: let notes ring to the end of their chord segment
     if (pattern.pedal === 'chord') {
       for (const ev of events) {
+        if (ev.noRing || ev.grace) continue;
         const seg = ctx.segments[ev.segIdx];
         const end = ev.intoNextBar ? STEPS_PER_BAR + seg.end : seg.end;
         const ringTo = Math.max(ev.dur, end - ev.step);
@@ -363,6 +532,8 @@
           energy: sec.energy,
           velMul: dyn[0] + (dyn[1] - dyn[0]) * frac,
           fill: lastBar && sec.fill ? { type: sec.fill, targetPc } : null,
+          colour: sec.colour || null, // per-section passing-chord mode
+          voicing: sec.voicing || null, // per-section colour upgrade (triads → add9…)
           sectionIdx,
           barInSection: b,
         });
@@ -378,6 +549,7 @@
       playing: false,
       bpm: 84,
       energy: 'verse',
+      colour: 'off', // passing-chord mode: 'off' | 'subtle' | 'rich'
       hands: 'both',
       metronome: false,
       countIn: false,
@@ -424,8 +596,13 @@
       }
       const barMod = state.bar % state.ctxData.totalBars;
       const events = entry
-        ? renderBar(state.ctxData, entry.pattern, barMod, entry.energy, { velMul: entry.velMul, fill: entry.fill })
-        : renderBar(state.ctxData, state.pattern, barMod, state.energy);
+        ? renderBar(state.ctxData, entry.pattern, barMod, entry.energy, {
+            velMul: entry.velMul,
+            fill: entry.fill,
+            colour: entry.colour || state.colour,
+            colorOverride: entry.voicing,
+          })
+        : renderBar(state.ctxData, state.pattern, barMod, state.energy, { colour: state.colour });
       for (const ev of events) {
         if (state.hands !== 'both' && ev.hand !== state.hands) continue;
         const t = t0 + ev.step * stepDur + (Math.random() - 0.5) * 0.008;
@@ -619,21 +796,23 @@
   }
 
   /** Render the whole progression once and emit a Standard MIDI File (format 1). */
-  function exportMidi(ctxData, pattern, energy, bpm) {
+  function exportMidi(ctxData, pattern, energy, bpm, colour) {
     const collect = { lh: [], rh: [] };
     for (let bar = 0; bar < ctxData.totalBars; bar++) {
-      collectBar(collect, renderBar(ctxData, pattern, bar, energy), bar);
+      collectBar(collect, renderBar(ctxData, pattern, bar, energy, { colour }), bar);
     }
     return emitSmf(collect, ctxData.totalBars * 16 * STEP_TICKS, bpm);
   }
 
   /** Render a full arrangement timeline (every section, arc and fill) to MIDI. */
-  function exportArrangementMidi(ctxData, timeline, bpm) {
+  function exportArrangementMidi(ctxData, timeline, bpm, colour) {
     const collect = { lh: [], rh: [] };
     timeline.forEach((entry, i) => {
       const events = renderBar(ctxData, entry.pattern, i % ctxData.totalBars, entry.energy, {
         velMul: entry.velMul,
         fill: entry.fill,
+        colour: entry.colour || colour,
+        colorOverride: entry.voicing,
       });
       collectBar(collect, events, i);
     });

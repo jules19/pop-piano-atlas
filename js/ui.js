@@ -430,7 +430,7 @@
       $('bpm').textContent = e.target.value + ' bpm';
     });
 
-    for (const [segId, key] of [['energy', 'energy'], ['hands', 'hands']]) {
+    for (const [segId, key] of [['energy', 'energy'], ['colour', 'colour'], ['hands', 'hands']]) {
       $(segId).addEventListener('click', (e) => {
         const btn = e.target.closest('button');
         if (!btn) return;
@@ -455,12 +455,12 @@
       const song = currentPresetId === '_custom' ? 'custom' : currentPresetId;
       let bytes, name;
       if (currentArrangement && player.state.timeline) {
-        bytes = E.exportArrangementMidi(player.state.ctxData, player.state.timeline, player.state.bpm);
+        bytes = E.exportArrangementMidi(player.state.ctxData, player.state.timeline, player.state.bpm, player.state.colour);
         name = `atlas-${song}-${currentArrangement.id}.mid`;
       } else {
         const pat = player.state.pendingPattern || player.state.pattern;
         if (!pat) return;
-        bytes = E.exportMidi(player.state.ctxData, pat, player.state.energy, player.state.bpm);
+        bytes = E.exportMidi(player.state.ctxData, pat, player.state.energy, player.state.bpm, player.state.colour);
         name = `atlas-${song}-${pat.id}.mid`;
       }
       const blob = new Blob([bytes], { type: 'audio/midi' });

@@ -122,6 +122,7 @@ input, select { font-family: inherit; color: inherit; }
 .seg button:last-child { border-right: 0; }
 .seg button.on { background: #2a3140; color: var(--ink); }
 .seg.energy button.on { color: var(--accent); }
+.seg.colour button.on { color: var(--good); }
 .seg.hands button.on:nth-child(2) { color: var(--lh); }
 .seg.hands button.on:nth-child(3) { color: var(--rh); }
 
@@ -481,6 +482,15 @@ input, select { font-family: inherit; color: inherit; }
           <button data-v="3">Build</button>
           <button data-v="4">Chorus</button>
           <button data-v="5">Finale</button>
+        </div>
+      </div>
+
+      <div class="ctl">
+        <label>Colour</label>
+        <div class="seg colour" id="colour" title="Passing chords: the bass walks into each chord change — inversions and walkdowns (Passing), or secondary dominants and chromatic diminished (Gospel)">
+          <button data-v="off" class="on">Plain</button>
+          <button data-v="subtle">Passing</button>
+          <button data-v="rich">Gospel</button>
         </div>
       </div>
 
@@ -884,6 +894,73 @@ input, select { font-family: inherit; color: inherit; }
     return candidates[0];
   }
 
+  // ---------------------------------------------------------------- passing chords
+
+  /** Construct a chord object programmatically (for connectors the user never typed). */
+  function buildChord(rootPc, quality, bassPc) {
+    const intervals = QUALITY_MAP[quality];
+    if (!intervals) return null;
+    const name = SHARP_NAMES[rootPc % 12];
+    const bass = bassPc == null ? rootPc : bassPc;
+    return {
+      symbol: name + quality + (bass !== rootPc ? '/' + SHARP_NAMES[bass % 12] : ''),
+      rootPc: rootPc % 12,
+      quality: quality === '' ? 'maj' : quality,
+      intervals,
+      isMinor: quality === 'm' || quality === 'm7' || quality === 'dim' || quality === 'dim7' || quality === 'm7b5',
+      bassPc: bass % 12,
+      hasSlash: bass % 12 !== rootPc % 12,
+      pcs: intervals.map((i) => (rootPc + i) % 12),
+    };
+  }
+
+  /**
+   * A passing chord to play on the last beat before moving from chord A to chord B.
+   * The recipes come straight from the gospel/pop playbook:
+   *  - walkup    (bass 1→3→target):  A in first inversion when B sits a 4th above A
+   *  - walkdown  (bass steps down):  B in first inversion when B sits a 5th above A
+   *  - dominant  (V7 of B, first inversion — its 3rd IS B's leading tone, so the
+   *               bass approaches chromatically from below)
+   *  - dim       (chromatic passing °7 on the semitone between roots a whole step apart)
+   * mode: 'subtle' = diatonic bass moves only (safe under any held harmony);
+   *       'rich'   = adds the chromatic devices (secondary dominants, passing dims).
+   * Returns { kind, chord } or null.
+   */
+  function connectorFor(chordA, chordB, mode) {
+    if (!chordA || !chordB || !mode || mode === 'off') return null;
+    if (chordA.rootPc === chordB.rootPc && chordA.bassPc === chordB.bassPc) return null;
+    if (chordB.quality === 'dim' || chordB.quality === 'dim7' || chordB.quality === 'aug') return null;
+    const dist = (chordB.bassPc - chordA.bassPc + 12) % 12;
+
+    if (mode === 'rich') {
+      if (dist === 2) {
+        // C → C#°7 → Dm : the "scrunchy" chromatic climb
+        return { kind: 'dim', chord: buildChord((chordA.bassPc + 1) % 12, 'dim7') };
+      }
+      // V7 of the target, third in the bass: G7/B → C, B7/D# → Em
+      const domRoot = (chordB.rootPc + 7) % 12;
+      const leadingTone = (chordB.rootPc + 11) % 12;
+      if (leadingTone !== chordA.bassPc) {
+        return { kind: 'dominant', chord: buildChord(domRoot, '7', leadingTone) };
+      }
+      return null;
+    }
+
+    // subtle: only stepwise diatonic bass connectors
+    if (dist === 5 && !chordA.isMinor && chordA.intervals.includes(4)) {
+      // C → C/E → F : bass walks 1-3-4
+      return { kind: 'walkup', chord: buildChord(chordA.rootPc, chordA.quality === 'maj' ? '' : chordA.quality, (chordA.rootPc + 4) % 12) };
+    }
+    if (dist === 7 && !chordB.isMinor && chordB.intervals.includes(4)) {
+      // F → C/E → C : bass steps down onto the target's third first
+      return { kind: 'walkdown', chord: buildChord(chordB.rootPc, chordB.quality === 'maj' ? '' : chordB.quality, (chordB.rootPc + 4) % 12) };
+    }
+    if (dist === 7 && chordB.isMinor && chordB.intervals.includes(3)) {
+      return { kind: 'walkdown', chord: buildChord(chordB.rootPc, 'm', (chordB.rootPc + 3) % 12) };
+    }
+    return null;
+  }
+
   /** The interval filling a chord's "third slot": its real third, or the sus tone
    *  (4th/2nd) for chords that deliberately have none, or the fifth as a last resort. */
   function thirdSlot(chord) {
@@ -938,6 +1015,8 @@ input, select { font-family: inherit; color: inherit; }
     midiToName,
     transposeSymbol,
     voiceChord,
+    buildChord,
+    connectorFor,
     lhRole,
     thirdSlot,
     bassMidi,
@@ -1218,6 +1297,60 @@ input, select { font-family: inherit; color: inherit; }
       tip: 'Listen for the chord where the anchor turns dissonant — that bar is the emotional centre of the loop.',
     },
     {
+      id: 'crossover',
+      group: 'ballad',
+      name: 'The Crossover',
+      tag: 'Left hand reaches over the right. Bohemian elegance.',
+      difficulty: 3,
+      energy: 2,
+      bpm: 72,
+      feel: 'straight',
+      pedal: 'chord',
+      color: null,
+      rhColorTones: [9, 10], // added 6th on major chords; the 7th sings on minor ones
+      lh: [{ s: 0, d: 16, n: ['R', '8'], v: 0.7 }],
+      rh: [
+        { s: 0, d: 2, n: 'chord', v: 0.68 },
+        { s: 2, d: 2, n: { arp: 'R' }, v: 0.55 },
+        { s: 4, d: 2, n: { arp: '5' }, v: 0.58 },
+        { s: 6, d: 2, n: { arp: '8' }, v: 0.6 },
+        { s: 8, d: 4, n: { arp: '6' }, v: 0.72 },
+        { s: 12, d: 4, n: { arp: '5' }, v: 0.62 },
+      ],
+      how: {
+        lh: 'A deep octave on beat 1, held all bar — the pedal does the sustaining.',
+        rh: 'State the chord, unfold it upward in 8ths, then two singing notes on beats 3 and 4: the 6th, resolving to the 5th. On stage that melody is played by the LEFT hand crossing over — try it.',
+      },
+      why:
+        'A classical broken-chord figure with one non-chord note — the added 6th — placed at the top where the ear treats it as melody. The 6th leans, the 5th answers; that tiny sigh is what makes the bar sound composed rather than accompanied. It is the intro texture of “Bohemian Rhapsody”, borrowed from two centuries of nocturnes.',
+      use: 'Ballad intros; rubato moments; any bar that should sound like candlelight.',
+      songs: ['“Bohemian Rhapsody” intro feel', '“Love of My Life”', 'Chopin, if he wrote for stadiums'],
+      tip: 'Actually cross the left hand over for the beat-3 note. It looks theatrical and it forces the arm weight that makes the note sing.',
+    },
+    {
+      id: 'late-bloom',
+      group: 'ballad',
+      name: 'Late Bloom',
+      tag: 'Bass on the beat, chord just after. The jazz ballad exhale.',
+      difficulty: 1,
+      energy: 1,
+      bpm: 70,
+      feel: 'straight',
+      pedal: 'chord',
+      color: 'add9',
+      lh: [{ s: 0, d: 16, n: ['R', '5'], v: 0.72 }],
+      rh: [{ s: 2, d: 14, n: 'chord', v: 0.68, grace: true }],
+      how: {
+        lh: 'Root and fifth together, squarely on beat 1. The anchor.',
+        rh: 'One chord per bar — but on the “and” of 1, not the beat. Land it softly and let it ring.',
+      },
+      why:
+        'Splitting the attack — bass first, harmony half a beat behind — is how jazz and soul pianists voice a ballad: the ear hears one gesture, but the delay makes it breathe. With an add9 in the chord and a grace note sliding into the third, one attack per bar is a complete accompaniment.',
+      use: 'Slow standards; the last verse; behind a singer who needs total space.',
+      songs: ['“Don’t Know Why” comping', '“Killing Me Softly” verses', 'Any 2am ballad'],
+      tip: 'The chord should sound like it fell onto the keys, not like it was placed. Drop the wrist.',
+    },
+    {
       id: 'heartbeat',
       group: 'ballad',
       name: 'The Heartbeat',
@@ -1410,6 +1543,41 @@ input, select { font-family: inherit; color: inherit; }
 
     // -------------------------------------------------------- POP & ROCK ENGINES
     {
+      id: 'folk-bite',
+      group: 'songwriter',
+      name: 'Sixteenth Bite',
+      tag: 'Hold the chord, then a 16th-note riff with teeth.',
+      difficulty: 3,
+      energy: 3,
+      bpm: 100,
+      feel: 'straight',
+      pedal: 'none',
+      color: null,
+      lh: [
+        { s: 0, d: 2, n: ['R'], v: 0.78 },
+        { s: 4, d: 2, n: ['8'], v: 0.6 },
+        { s: 8, d: 2, n: ['R'], v: 0.7 },
+        { s: 12, d: 2, n: ['8'], v: 0.6 },
+      ],
+      rh: [
+        { s: 0, d: 8, n: 'chord', v: 0.75 },
+        { s: 8, d: 1, n: 'chord', v: 0.68 },
+        { s: 9, d: 1, n: 'chord', v: 0.5 },
+        { s: 11, d: 1, n: 'chord', mod: 'sus4', v: 0.6 },
+        { s: 13, d: 1, n: 'chord', v: 0.55 },
+        { s: 15, d: 1, n: 'chord', v: 0.62, anticipate: true },
+      ],
+      how: {
+        lh: 'Short, detached octaves on every beat — low, high, low, high, like a bass player with a pick.',
+        rh: 'Half the bar is a held chord. Then the riff: 16ths on 3, 3-e, 3-a, 4-e — with the chord’s third lifting to the 4th and back — and the last 16th lands the NEXT chord early.',
+      },
+      why:
+        'The bite is in the off-16ths: hits on the “e”s and “a”s cut against the backbeat like a strummed acoustic. The 3rd→4th→3rd wobble inside the riff is a guitarist’s hammer-on translated to keys, and the final 16th anticipation means every bar hands momentum to the next.',
+      use: 'Urgent folk-rock verses; driving acoustic covers; when a held chord feels lazy.',
+      songs: ['Folk-rock backbeat piano everywhere', 'Mumford-era stomp', 'The bar before a big chorus'],
+      tip: 'Count “3-e-and-a-4-e-and-a” out loud and only play on the syllables the pattern marks. The rests ARE the riff.',
+    },
+    {
       id: 'eighth-pump',
       group: 'engine',
       name: 'The Pump',
@@ -1470,6 +1638,100 @@ input, select { font-family: inherit; color: inherit; }
       use: 'When the song needs to be louder than it is; final choruses; anything cathartic.',
       songs: ['“Zak and Sara”, “Song for the Dumped” (Ben Folds)', '“Bennie and the Jets” attitude'],
       tip: 'Bounce the octaves from the wrist, not the arm — stiff forearms end this pattern early.',
+    },
+    {
+      id: 'woodchop',
+      group: 'engine',
+      name: 'The Woodchop',
+      tag: 'A chord on every 8th, an octave bass that bounces. Relentless, relaxed.',
+      difficulty: 2,
+      energy: 4,
+      bpm: 120,
+      feel: 'straight',
+      pedal: 'none',
+      color: null,
+      lh: [
+        { s: 0, d: 4, n: ['R'], v: 0.78 },
+        { s: 4, d: 3, n: ['8'], v: 0.6 },
+        { s: 7, d: 1, n: ['5'], v: 0.45 },
+        { s: 8, d: 4, n: ['R'], v: 0.72 },
+        { s: 12, d: 4, n: ['8'], v: 0.6 },
+      ],
+      rh: pump8([0.82, 0.55, 0.68, 0.55, 0.75, 0.55, 0.68, 0.58]),
+      how: {
+        lh: 'Octave bounce: low root, high root, low, high — with a sneaky 16th on the fifth tucked in before beat 3.',
+        rh: 'The full chord on every single 8th. Lock into the subdivision and stay loose.',
+      },
+      why:
+        'Where The Pump holds the floor still, the Woodchop makes the bass dance: low–high octaves are a walking drummer’s kick and hi-hat in one hand. The 16th-note pickup is the pattern’s heartbeat skip — remove it and the bar is a machine; keep it and the bar is a player. This is Freddie Mercury verse fuel.',
+      use: 'Verses that need drive without a band; piano-rock; anything by Queen.',
+      songs: ['“Killer Queen” comping energy', '“Old Time Rock and Roll”', 'Music-hall rock at any tempo'],
+      tip: 'Play the RH 8ths at half the volume you think you need. The LEFT hand is the show.',
+    },
+    {
+      id: 'disco-pump',
+      group: 'engine',
+      name: 'Disco Pump',
+      tag: 'Four-on-the-floor octaves, stabs that push. Add mirrorball.',
+      difficulty: 2,
+      energy: 4,
+      bpm: 116,
+      feel: 'straight',
+      pedal: 'none',
+      color: null,
+      lh: [
+        { s: 0, d: 2, n: ['R'], v: 0.8 },
+        { s: 4, d: 2, n: ['8'], v: 0.62 },
+        { s: 8, d: 2, n: ['R'], v: 0.75 },
+        { s: 12, d: 2, n: ['8'], v: 0.62 },
+      ],
+      rh: [
+        { s: 0, d: 4, n: 'chord', v: 0.8 },
+        { s: 8, d: 2, n: 'chord', v: 0.7 },
+        { s: 10, d: 2, n: 'chord', v: 0.62 },
+        { s: 14, d: 2, n: 'chord', v: 0.75, anticipate: true },
+      ],
+      how: {
+        lh: 'Staccato quarter-note octaves: low on 1 and 3, up an octave on 2 and 4. You are the disco bassist.',
+        rh: 'Stab on 1, double-tap on 3 and its “and”, silence on 2 — then the NEXT chord lands on the “and” of 4, early.',
+      },
+      why:
+        'Four-on-the-floor octaves with a hole on beat 2 is the entire disco rhythm section on ten fingers: the silence is where the snare cracks. The anticipated chord at the barline is what keeps a two-chord vamp spinning for four minutes without anyone noticing.',
+      use: 'Uptempo pop; anything with a groove and sunglasses; making two chords feel like a song.',
+      songs: ['Disco and city-pop piano', '“September”-adjacent grooves', 'ABBA’s engine room'],
+      tip: 'Staccato means the KEYS come up, not that you hit harder. Think basketballs, not hammers.',
+    },
+    {
+      id: 'elton-box',
+      group: 'engine',
+      name: 'The Elton Box',
+      tag: 'Double the top note an octave down. Suddenly: huge.',
+      difficulty: 2,
+      energy: 4,
+      bpm: 96,
+      feel: 'straight',
+      pedal: 'chord',
+      color: null,
+      lh: [
+        { s: 0, d: 8, n: ['R', '8'], v: 0.8 },
+        { s: 8, d: 8, n: ['R', '8'], v: 0.72 },
+      ],
+      rh: [
+        { s: 0, d: 4, n: 'box', v: 0.82 },
+        { s: 4, d: 4, n: 'box', v: 0.68 },
+        { s: 8, d: 2, n: 'box', v: 0.74 },
+        { s: 10, d: 4, n: 'box', mod: 'sus4', v: 0.7 },
+        { s: 14, d: 2, n: 'box', v: 0.78 },
+      ],
+      how: {
+        lh: 'Loud, confident octaves in half notes. No fifth, no filler — just weight.',
+        rh: 'The chord in “the box”: whatever note is on top gets doubled an octave BELOW, so the same pitch frames the chord top and bottom. Quarters — then on beat 3 the middle voice lifts to a sus4 and settles back.',
+      },
+      why:
+        'Boxing a triad inside its own octave is Elton John’s secret to sounding enormous with three notes of harmony: the doubled outer voice reads as power, the inner tones as colour. The sus4 push near the barline — one finger moving up a step and back — is the classic Elton lift, tension you can install in any chord for free.',
+      use: 'Piano-led choruses; gospel-pop; when the band drops out and you ARE the band.',
+      songs: ['“Goodbye Yellow Brick Road” gestures', '“Tiny Dancer” chorus weight', '“Don’t Let the Sun…” grandeur'],
+      tip: 'Same top and bottom pitch, always. If the frame changes note, it’s not a box, it’s just a big chord.',
     },
     {
       id: 'clocks-332',
@@ -1566,6 +1828,74 @@ input, select { font-family: inherit; color: inherit; }
       use: 'Doo-wop progressions; retro numbers; teaching your left hand independence.',
       songs: ['“Stand By Me”', '“Earth Angel”', 'Every 12/8 slow-dance ever'],
       tip: 'The walk works because it’s legato — connect the bass notes like a singer would.',
+    },
+    {
+      id: 'toggle',
+      group: 'groove',
+      name: 'The Toggle',
+      tag: 'Fingers and thumb take turns. A conversation in one hand.',
+      difficulty: 2,
+      energy: 2,
+      bpm: 88,
+      feel: 'straight',
+      pedal: 'none',
+      color: null,
+      lh: [
+        { s: 0, d: 7, n: ['R'], v: 0.75 },
+        { s: 7, d: 1, n: ['5'], v: 0.5 },
+        { s: 8, d: 4, n: ['8'], v: 0.68 },
+        { s: 12, d: 4, n: ['R'], v: 0.65 },
+      ],
+      rh: [
+        { s: 0, d: 2, n: [1, 2], v: 0.72 },
+        { s: 2, d: 2, n: [0], v: 0.48 },
+        { s: 4, d: 2, n: [1, 2], v: 0.6 },
+        { s: 6, d: 2, n: [0], v: 0.48 },
+        { s: 8, d: 2, n: [1, 2], v: 0.68 },
+        { s: 10, d: 2, n: [0], v: 0.48 },
+        { s: 12, d: 2, n: [1, 2], v: 0.6 },
+        { s: 14, d: 2, n: [0], v: 0.48 },
+      ],
+      how: {
+        lh: 'Root held, a 16th-note fifth sneaking in before beat 3, then octave, then root — a lazy, singing bass.',
+        rh: 'Split the hand in two: upper fingers play a two-note chord on the beats, the thumb answers alone on every “and”. They never land together.',
+      },
+      why:
+        'Alternating dyad-and-thumb turns a block chord into a rocking motion — the “Lean on Me” texture. Because the two halves of the hand trade places, the ear hears constant 8ths but nothing ever thickens; it grooves at a whisper. It is also the single best exercise for a relaxed right hand.',
+      use: 'Soul and gospel-pop verses; mid-tempo warmth; accompanying without crowding.',
+      songs: ['“Lean on Me” family', '“Ain’t No Sunshine” colour', 'Bill Withers piano generally'],
+      tip: 'The thumb notes are the quiet ones. If the “ands” poke out, the see-saw tips over.',
+    },
+    {
+      id: 'push-middle',
+      group: 'groove',
+      name: 'Push in the Middle',
+      tag: 'One accent, on the “and” of 2. The whole bar leans on it.',
+      difficulty: 2,
+      energy: 3,
+      bpm: 86,
+      feel: 'straight',
+      pedal: 'chord',
+      color: null,
+      lh: [
+        { s: 0, d: 6, n: ['R'], v: 0.75 },
+        { s: 6, d: 6, n: ['8'], v: 0.7, anticipate: true },
+        { s: 12, d: 4, n: ['R'], v: 0.62 },
+      ],
+      rh: [
+        { s: 0, d: 6, n: 'chord', v: 0.75 },
+        { s: 6, d: 6, n: 'chord', v: 0.82, anticipate: true, grace: true },
+        { s: 12, d: 4, n: 'chord', v: 0.62 },
+      ],
+      how: {
+        lh: 'Low root on 1; jump the octave on the “and” of 2 and hold; back down for beat 4.',
+        rh: 'Three chords: beat 1, the push on the “and” of 2 (the loudest thing in the bar, held through beat 3), beat 4 to land.',
+      },
+      why:
+        'Dotted-quarter, push, quarter — the bar divides 3+3+2, and the accent falls where no strong beat lives. That misplaced weight is what makes the music lean forward; drummers call it the middle push. When the harmony changes mid-bar, the push arrives ON the new chord — anticipation built into the pattern’s bones. A grace note slides into the third, gospel-style.',
+      use: 'Soulful mid-tempo songs; verses that plod when played straight; almost anything.',
+      songs: ['Soul and R&B comping everywhere', '“Isn’t She Lovely” feel', 'The Keys Coach’s favourite bar'],
+      tip: 'Say “push” out loud on the and-of-2 until your hand believes it. The accent is placed, never punched.',
     },
     {
       id: 'offbeats',
@@ -1727,8 +2057,12 @@ input, select { font-family: inherit; color: inherit; }
  *   pattern — a pattern id from the atlas          energy — 1 hush … 5 finale
  *   loops   — times through the progression (default 1)
  *   dyn     — [startMul, endMul] velocity arc across the section
- *   fill    — 'walkup' (LH climbs into the next root) | 'lift' (RH sus4 push +
- *             anticipated chord) | 'walkup+lift' — played in the section's last bar
+ *   fill    — played in the section's last bar:
+ *             'walkup' (LH climbs into the next root) · 'lift' (RH sus4 push +
+ *             anticipated chord) · 'walkup+lift' · 'pianoman' (RH dyad fill,
+ *             fifth on top) · 'stab' (stop-time: beat 1, then silence)
+ *   colour  — 'subtle' | 'rich': auto passing chords for this section
+ *   voicing — colour override ('add9'…): brighten the chords on later sections
  */
 (function () {
   'use strict';
@@ -1775,10 +2109,10 @@ input, select { font-family: inherit; color: inherit; }
       why:
         'Rock piano is an escalation of pulse: quarters become pushed 8ths become relentless octaves. The walk-up fills are the tell — that little 6̂–7̂ climb into the next root is how a player signals “hold on, here it comes” without a drummer.',
       sections: [
-        { name: 'Verse', pattern: 'quarter-pulse', energy: 2, dyn: [0.95, 1.0] },
+        { name: 'Verse', pattern: 'quarter-pulse', energy: 2, dyn: [0.95, 1.0], fill: 'pianoman' },
         { name: 'Pre-chorus', pattern: 'push', energy: 3, dyn: [1.0, 1.08], fill: 'walkup' },
         { name: 'Chorus', pattern: 'folds-drive', energy: 4, dyn: [1.02, 1.08], fill: 'walkup' },
-        { name: 'Last chorus', pattern: 'anthem', energy: 5, dyn: [1.05, 1.12] },
+        { name: 'Last chorus', pattern: 'anthem', energy: 5, dyn: [1.05, 1.12], voicing: 'add9' },
       ],
     },
     {
@@ -1806,10 +2140,76 @@ input, select { font-family: inherit; color: inherit; }
         'Gospel piano moves the congregation by tension and release: backbeat comping makes the pulse physical, the ’50s walk keeps the floor moving, and the sus chorus leans on every chord before letting it land. The walk-up fill is pure church — the bass always announces the next chord.',
       sections: [
         { name: 'Verse', pattern: 'pillars', energy: 2, dyn: [0.92, 1.0] },
-        { name: 'Groove', pattern: 'backbeat', energy: 3, dyn: [0.98, 1.04] },
+        { name: 'Groove', pattern: 'backbeat', energy: 3, dyn: [0.98, 1.04], colour: 'subtle' },
         { name: 'Walk', pattern: 'fifties-walk', energy: 3, dyn: [1.0, 1.06], fill: 'walkup' },
-        { name: 'Chorus', pattern: 'gospel-sus', energy: 4, dyn: [1.02, 1.1], fill: 'walkup+lift' },
-        { name: 'Benediction', pattern: 'bedrock', energy: 2, dyn: [0.9, 0.78] },
+        { name: 'Chorus', pattern: 'gospel-sus', energy: 4, dyn: [1.02, 1.1], colour: 'rich', fill: 'walkup+lift' },
+        { name: 'Benediction', pattern: 'bedrock', energy: 2, dyn: [0.9, 0.78], colour: 'rich' },
+      ],
+    },
+    {
+      id: 'lean-on-it',
+      name: 'Lean On It',
+      influence: 'Bill Withers · 70s soul piano',
+      bpm: 84,
+      blurb: 'Toggle, push, woodchop — one accent at a time, then stop-time silence before the drop.',
+      why:
+        'Soul piano builds by shifting where the weight falls, not by adding notes: the toggle rocks, the middle push leans, and the woodchop commits to every 8th. The stop-time bar — one hit, then nothing — is the oldest trick for making the next downbeat feel twice as loud. Gospel passing chords arrive with the amen.',
+      sections: [
+        { name: 'Verse', pattern: 'pillars', energy: 2, dyn: [0.92, 1.0] },
+        { name: 'Toggle', pattern: 'toggle', energy: 3, dyn: [0.96, 1.02] },
+        { name: 'Push', pattern: 'push-middle', energy: 3, dyn: [1.0, 1.08], colour: 'subtle', fill: 'stab' },
+        { name: 'Chorus', pattern: 'woodchop', energy: 4, dyn: [1.02, 1.1], fill: 'walkup' },
+        { name: 'Amen', pattern: 'gospel-sus', energy: 3, dyn: [0.98, 0.9], colour: 'rich' },
+        { name: 'Outro', pattern: 'bedrock', energy: 1, dyn: [0.88, 0.72] },
+      ],
+    },
+    {
+      id: 'rocket-fuel',
+      name: 'Rocket Fuel',
+      influence: 'Elton John · huge chords',
+      bpm: 96,
+      blurb: 'From a whispered bloom to the boxed-in wall of sound. Glasses optional.',
+      why:
+        'The Elton arc is about register and doubling, not speed: the verse floats, the 1-5-8 roll adds the harp, and then the box voicing frames every chord in its own octave while the left hand goes to work. The Piano Man fill signs the postcards between sections; passing chords carry the bass line home.',
+      sections: [
+        { name: 'Intro', pattern: 'late-bloom', energy: 1, dyn: [0.85, 0.95] },
+        { name: 'Verse', pattern: 'roll-158', energy: 2, dyn: [0.92, 1.0], fill: 'pianoman' },
+        { name: 'Lift', pattern: 'push', energy: 3, dyn: [0.98, 1.08], colour: 'subtle', fill: 'lift' },
+        { name: 'Chorus', pattern: 'elton-box', energy: 4, dyn: [1.02, 1.1], colour: 'subtle' },
+        { name: 'Encore', pattern: 'anthem', energy: 5, dyn: [1.05, 1.12], voicing: 'add9', fill: 'stab' },
+        { name: 'Outro', pattern: 'late-bloom', energy: 1, dyn: [0.88, 0.72] },
+      ],
+    },
+    {
+      id: 'night-opera',
+      name: 'Night at the Opera',
+      influence: 'Queen · Freddie Mercury',
+      bpm: 108,
+      blurb: 'Candlelit crossover to woodchop stabs to a finale that ends mid-air.',
+      why:
+        'Freddie’s arc is theatre: begin alone at the piano (the crossover, sixths singing on top), tighten into the woodchop’s percussive stabs, unleash the driving octaves, and end the loop with a stop-time chord that hangs in silence before the intro returns. Melodrama, engineered.',
+      sections: [
+        { name: 'Candlelight', pattern: 'crossover', energy: 1, dyn: [0.85, 0.95] },
+        { name: 'Verse', pattern: 'crossover', energy: 2, dyn: [0.95, 1.02], fill: 'lift' },
+        { name: 'Woodchop', pattern: 'woodchop', energy: 3, dyn: [0.98, 1.05], colour: 'subtle' },
+        { name: 'Drive', pattern: 'folds-drive', energy: 4, dyn: [1.02, 1.1], fill: 'walkup' },
+        { name: 'Finale', pattern: 'anthem', energy: 5, dyn: [1.05, 1.14], voicing: 'add9', fill: 'stab' },
+      ],
+    },
+    {
+      id: 'mirrorball',
+      name: 'Mirrorball',
+      influence: 'Disco · four-on-the-floor pop',
+      bpm: 116,
+      blurb: 'Off-beats to full disco pump — the same chords, spinning faster and shinier.',
+      why:
+        'Dance-floor piano is about the pocket: the skank teaches your hands where the air is, the disco pump fills the floor with octaves, and the snap tightens everything to the 16th grid. The last chorus brightens every chord with an added 9th — the mirrorball turning on.',
+      sections: [
+        { name: 'Warm-up', pattern: 'offbeats', energy: 2, dyn: [0.94, 1.0] },
+        { name: 'Floor', pattern: 'disco-pump', energy: 3, dyn: [0.98, 1.06] },
+        { name: 'Snap', pattern: 'snap-16', energy: 4, dyn: [1.0, 1.08], fill: 'pianoman' },
+        { name: 'Lights', pattern: 'disco-pump', energy: 5, dyn: [1.05, 1.12], voicing: 'add9', fill: 'stab' },
+        { name: 'Fade', pattern: 'first-arpeggio', energy: 1, dyn: [0.88, 0.7] },
       ],
     },
     {
@@ -1991,6 +2391,7 @@ input, select { font-family: inherit; color: inherit; }
       case 'R': return root;
       case '3': return root + third;
       case '5': return root + fifth;
+      case '6': return root + (chord.isMinor ? 10 : 9); // 6th colour; on minor chords the 7th sings instead
       case '8': return root + 12;
       case '10': return root + 12 + third;
       case '12': return root + 12 + fifth;
@@ -2029,17 +2430,55 @@ input, select { font-family: inherit; color: inherit; }
     return out;
   }
 
+  /** Connector (passing chord) into the NEXT bar's first chord, if one applies here.
+   *  Patterns that pedal (static bass is their point) or push their own anticipations
+   *  into the barline already own that moment — no connector on top. */
+  function connectorForBar(ctx, pattern, bar, mode) {
+    if (pattern.lh.some((e) => e.n.includes && e.n.includes('pedal'))) return null;
+    const tailAnticipates = [...pattern.lh, ...pattern.rh].some((e) => e.anticipate && e.s >= 12);
+    if (tailAnticipates) return null;
+    if (!ctx.connCache) ctx.connCache = {};
+    const key = mode + ':' + (bar % ctx.totalBars);
+    if (!(key in ctx.connCache)) {
+      const cur = ctx.segments[segIndexFor(ctx, bar, 15)].chord;
+      const next = ctx.segments[segIndexFor(ctx, bar + 1, 0)].chord;
+      ctx.connCache[key] = T.connectorFor(cur, next, mode);
+    }
+    return ctx.connCache[key];
+  }
+
+  /** Voice a connector chord close to the current segment's voicing (cached). */
+  function voicingFor(ctx, vs, chord, segIdx) {
+    if (!vs.connVoicings) vs.connVoicings = {};
+    const key = segIdx + ':' + chord.symbol;
+    if (!(key in vs.connVoicings)) {
+      vs.connVoicings[key] = T.voiceChord(chord, vs.voicings[segIdx], null);
+    }
+    return vs.connVoicings[key];
+  }
+
+  function nearestPitch(voicing, target) {
+    let best = voicing[0];
+    for (const m of voicing) if (Math.abs(m - target) < Math.abs(best - target)) best = m;
+    return best;
+  }
+
   /**
    * Render one bar into playable events.
    * Returns [{ step, dur, midis, vel, hand }] — step/dur in 16th steps (step may be fractional after swing).
    *
    * `energy`: 'verse' | 'chorus' | 1..5 — a five-rung dynamic ladder. 4+ adds octave
    * doublings (the classic chorus lift); 1 pulls everything back to a hush.
-   * `opts` (all optional, used by arrangements):
-   *   velMul — extra velocity multiplier for section dynamics arcs
-   *   fill   — { type: 'walkup' | 'lift' | 'walkup+lift', targetPc } applied to the
-   *            bar's tail: LH walks up into the next section's root; RH pushes a
-   *            sus4 colour and anticipates the coming chord before the barline.
+   * `opts` (all optional, used by arrangements and the colour control):
+   *   velMul        — extra velocity multiplier for section dynamics arcs
+   *   fill          — { type, targetPc }: 'walkup' (LH climbs into the next root),
+   *                   'lift' (RH sus4 push + anticipation), 'walkup+lift',
+   *                   'pianoman' (RH dyad fill, fifth fixed on top), or
+   *                   'stab' (stop-time: beat 1 hits, then silence)
+   *   colour        — 'off' | 'subtle' | 'rich': auto passing chords on beat 4
+   *                   before harmony changes (see Theory.connectorFor)
+   *   colorOverride — voicing colour ('add9'…) replacing the pattern's own, so
+   *                   arrangements can brighten chords on later sections
    */
   function renderBar(ctx, pattern, barIndex, energy, opts) {
     const events = [];
@@ -2048,7 +2487,7 @@ input, select { font-family: inherit; color: inherit; }
     const chorus = level >= 4;
     const split = barIsSplit(ctx, bar);
     const seg1Idx = segIndexFor(ctx, bar, 0);
-    const vs = voicingSet(ctx, pattern.color);
+    const vs = voicingSet(ctx, (opts && opts.colorOverride) || pattern.color);
     const fill = opts && opts.fill ? opts.fill : null;
 
     // fills reshape the bar's tail before rendering, so anticipation/segment
@@ -2119,6 +2558,12 @@ input, select { font-family: inherit; color: inherit; }
         let midis;
         if (ev.n === 'anchor') {
           midis = anchorNotes(ctx.tonic);
+        } else if (ev.n === 'box') {
+          // the Elton box: the voicing's top note doubled an octave below —
+          // outer octave "boxing in" the harmony makes any triad sound huge
+          const base = ev.mod === 'sus4' ? susVoicing(ctx, vs, piece.segIdx) : vs.voicings[piece.segIdx];
+          const top = base[base.length - 1];
+          midis = [...new Set([top - 12, ...base])].sort((a, b) => a - b);
         } else if (ev.mod === 'sus4') {
           midis = susVoicing(ctx, vs, piece.segIdx).slice();
         } else {
@@ -2130,9 +2575,26 @@ input, select { font-family: inherit; color: inherit; }
           else if (ev.n && ev.n.arp) midis = [arpNote(ev.n.arp, chord)];
           else midis = v.slice();
         }
-        if (chorus && (ev.n === 'chord' || ev.mod === 'sus4')) {
+        if (chorus && (ev.n === 'chord' || ev.n === 'box' || ev.mod === 'sus4')) {
           const top = midis[midis.length - 1];
           if (top + 12 <= 88) midis = [...midis, top + 12];
+        }
+        // gospel grace slide: a soft chromatic crush into the major third, played
+        // just ahead of the hit — the ♭3→3 ornament that says "player, not playback"
+        if (ev.grace && !piece.reattack) {
+          const third = midis.find((m) => (m - chord.rootPc + 1200) % 12 === 4);
+          if (third) {
+            events.push({
+              step: Math.max(0, piece.step - 0.4),
+              dur: 0.5,
+              midis: [third - 1],
+              vel: (ev.v != null ? ev.v : 0.7) * 0.4,
+              hand: 'rh',
+              segIdx: piece.segIdx,
+              grace: true,
+              noRing: true,
+            });
+          }
         }
         const vel = (ev.v != null ? ev.v : 0.7) * (piece.reattack ? 0.85 : 1);
         events.push({
@@ -2148,6 +2610,112 @@ input, select { font-family: inherit; color: inherit; }
       }
     }
 
+    // ---- Piano Man fill: RH dyad cells, the fifth fixed on top while the lower
+    // voice walks third → root, closing with a pickup dyad on the coming chord
+    if (fill && /pianoman/.test(fill.type)) {
+      for (let i = events.length - 1; i >= 0; i--) {
+        const e = events[i];
+        if (e.hand !== 'rh' || e.anticipate || e.grace) continue;
+        if (e.step >= 10) events.splice(i, 1);
+        else if (e.step + e.dur > 10) {
+          e.dur = 10 - e.step;
+          e.noRing = true;
+        }
+      }
+      const lastSegIdx = segIndexFor(ctx, bar, 15);
+      const nextSegIdx = segIndexFor(ctx, bar + 1, 0);
+      const cur = ctx.segments[lastSegIdx].chord;
+      const next = ctx.segments[nextSegIdx].chord;
+      const top = arpNote('12', cur);
+      events.push({ step: 10, dur: 2, midis: [arpNote('10', cur), top], vel: 0.58, hand: 'rh', segIdx: lastSegIdx, fill: true });
+      events.push({ step: 12, dur: 2, midis: [arpNote('8', cur), top], vel: 0.62, hand: 'rh', segIdx: lastSegIdx, fill: true });
+      events.push({
+        step: 14,
+        dur: 2,
+        midis: [arpNote('10', next), arpNote('12', next)],
+        vel: 0.6,
+        hand: 'rh',
+        segIdx: nextSegIdx,
+        intoNextBar: true,
+        fill: true,
+      });
+    }
+
+    // ---- auto passing chords ("colour"): on the last beat before the harmony
+    // moves, the bass walks — an inversion, a secondary dominant's leading tone,
+    // or a chromatic diminished — exactly as the gospel/pop playbook prescribes.
+    const colour = opts && opts.colour;
+    if (colour && colour !== 'off' && !fill) {
+      const conn = connectorForBar(ctx, pattern, bar, colour);
+      if (conn) {
+        const lastSegIdx = segIndexFor(ctx, bar, 15);
+        for (let i = events.length - 1; i >= 0; i--) {
+          const e = events[i];
+          if (e.anticipate || e.grace) continue;
+          if (e.hand === 'lh') {
+            if (e.step >= 12) events.splice(i, 1);
+            else if (e.step + e.dur > 12) {
+              e.dur = 12 - e.step;
+              e.noRing = true;
+            }
+          }
+        }
+        events.push({
+          step: 12,
+          dur: 4,
+          midis: [T.bassMidi(conn.chord.bassPc, T.RENDER.lhTargetRoot + 2)],
+          vel: 0.64,
+          hand: 'lh',
+          segIdx: lastSegIdx,
+          connector: true,
+        });
+        // walkup keeps the same harmony (only the bass moves); the chromatic kinds
+        // re-voice any right-hand tail hit — or add a soft shell when the pattern
+        // holds through beat 4, so the passing harmony is actually heard
+        if (conn.kind !== 'walkup') {
+          const connVoicing = voicingFor(ctx, vs, conn.chord, lastSegIdx);
+          let retargeted = false;
+          for (const e of events) {
+            if (e.hand === 'rh' && !e.anticipate && !e.grace && !e.fill && e.step >= 12) {
+              e.midis = e.midis.length > 1 ? connVoicing.slice() : [nearestPitch(connVoicing, e.midis[0])];
+              e.connector = true;
+              retargeted = true;
+            }
+          }
+          if (!retargeted && (conn.kind === 'dominant' || conn.kind === 'dim')) {
+            for (const e of events) {
+              if (e.hand === 'rh' && !e.grace && !e.anticipate && e.step < 12 && e.step + e.dur > 12) {
+                e.dur = 12 - e.step;
+                e.noRing = true;
+              }
+            }
+            events.push({
+              step: 12,
+              dur: 4,
+              midis: [connVoicing[0], connVoicing[connVoicing.length - 1]],
+              vel: 0.5,
+              hand: 'rh',
+              segIdx: lastSegIdx,
+              connector: true,
+            });
+          }
+        }
+      }
+    }
+
+    // ---- stop-time stab: beat 1 lands, then silence — the oldest drama in gospel
+    if (fill && fill.type === 'stab') {
+      for (let i = events.length - 1; i >= 0; i--) {
+        const e = events[i];
+        if (e.step >= 4) events.splice(i, 1);
+        else {
+          e.dur = Math.min(e.dur, 6);
+          e.vel = Math.min(1, e.vel * 1.18);
+          e.noRing = true;
+        }
+      }
+    }
+
     // ---- energy velocity shaping (five-rung ladder × optional section arc)
     const velScale = ENERGY_VEL[level] * (opts && opts.velMul ? opts.velMul : 1);
     for (const ev of events) ev.vel = Math.max(0.12, Math.min(1, ev.vel * velScale));
@@ -2155,6 +2723,7 @@ input, select { font-family: inherit; color: inherit; }
     // ---- pedal: let notes ring to the end of their chord segment
     if (pattern.pedal === 'chord') {
       for (const ev of events) {
+        if (ev.noRing || ev.grace) continue;
         const seg = ctx.segments[ev.segIdx];
         const end = ev.intoNextBar ? STEPS_PER_BAR + seg.end : seg.end;
         const ringTo = Math.max(ev.dur, end - ev.step);
@@ -2201,6 +2770,8 @@ input, select { font-family: inherit; color: inherit; }
           energy: sec.energy,
           velMul: dyn[0] + (dyn[1] - dyn[0]) * frac,
           fill: lastBar && sec.fill ? { type: sec.fill, targetPc } : null,
+          colour: sec.colour || null, // per-section passing-chord mode
+          voicing: sec.voicing || null, // per-section colour upgrade (triads → add9…)
           sectionIdx,
           barInSection: b,
         });
@@ -2216,6 +2787,7 @@ input, select { font-family: inherit; color: inherit; }
       playing: false,
       bpm: 84,
       energy: 'verse',
+      colour: 'off', // passing-chord mode: 'off' | 'subtle' | 'rich'
       hands: 'both',
       metronome: false,
       countIn: false,
@@ -2262,8 +2834,13 @@ input, select { font-family: inherit; color: inherit; }
       }
       const barMod = state.bar % state.ctxData.totalBars;
       const events = entry
-        ? renderBar(state.ctxData, entry.pattern, barMod, entry.energy, { velMul: entry.velMul, fill: entry.fill })
-        : renderBar(state.ctxData, state.pattern, barMod, state.energy);
+        ? renderBar(state.ctxData, entry.pattern, barMod, entry.energy, {
+            velMul: entry.velMul,
+            fill: entry.fill,
+            colour: entry.colour || state.colour,
+            colorOverride: entry.voicing,
+          })
+        : renderBar(state.ctxData, state.pattern, barMod, state.energy, { colour: state.colour });
       for (const ev of events) {
         if (state.hands !== 'both' && ev.hand !== state.hands) continue;
         const t = t0 + ev.step * stepDur + (Math.random() - 0.5) * 0.008;
@@ -2457,21 +3034,23 @@ input, select { font-family: inherit; color: inherit; }
   }
 
   /** Render the whole progression once and emit a Standard MIDI File (format 1). */
-  function exportMidi(ctxData, pattern, energy, bpm) {
+  function exportMidi(ctxData, pattern, energy, bpm, colour) {
     const collect = { lh: [], rh: [] };
     for (let bar = 0; bar < ctxData.totalBars; bar++) {
-      collectBar(collect, renderBar(ctxData, pattern, bar, energy), bar);
+      collectBar(collect, renderBar(ctxData, pattern, bar, energy, { colour }), bar);
     }
     return emitSmf(collect, ctxData.totalBars * 16 * STEP_TICKS, bpm);
   }
 
   /** Render a full arrangement timeline (every section, arc and fill) to MIDI. */
-  function exportArrangementMidi(ctxData, timeline, bpm) {
+  function exportArrangementMidi(ctxData, timeline, bpm, colour) {
     const collect = { lh: [], rh: [] };
     timeline.forEach((entry, i) => {
       const events = renderBar(ctxData, entry.pattern, i % ctxData.totalBars, entry.energy, {
         velMul: entry.velMul,
         fill: entry.fill,
+        colour: entry.colour || colour,
+        colorOverride: entry.voicing,
       });
       collectBar(collect, events, i);
     });
@@ -3136,7 +3715,7 @@ input, select { font-family: inherit; color: inherit; }
       $('bpm').textContent = e.target.value + ' bpm';
     });
 
-    for (const [segId, key] of [['energy', 'energy'], ['hands', 'hands']]) {
+    for (const [segId, key] of [['energy', 'energy'], ['colour', 'colour'], ['hands', 'hands']]) {
       $(segId).addEventListener('click', (e) => {
         const btn = e.target.closest('button');
         if (!btn) return;
@@ -3161,12 +3740,12 @@ input, select { font-family: inherit; color: inherit; }
       const song = currentPresetId === '_custom' ? 'custom' : currentPresetId;
       let bytes, name;
       if (currentArrangement && player.state.timeline) {
-        bytes = E.exportArrangementMidi(player.state.ctxData, player.state.timeline, player.state.bpm);
+        bytes = E.exportArrangementMidi(player.state.ctxData, player.state.timeline, player.state.bpm, player.state.colour);
         name = `atlas-${song}-${currentArrangement.id}.mid`;
       } else {
         const pat = player.state.pendingPattern || player.state.pattern;
         if (!pat) return;
-        bytes = E.exportMidi(player.state.ctxData, pat, player.state.energy, player.state.bpm);
+        bytes = E.exportMidi(player.state.ctxData, pat, player.state.energy, player.state.bpm, player.state.colour);
         name = `atlas-${song}-${pat.id}.mid`;
       }
       const blob = new Blob([bytes], { type: 'audio/midi' });

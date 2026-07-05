@@ -115,6 +115,7 @@ input, select { font-family: inherit; color: inherit; }
 .seg button:last-child { border-right: 0; }
 .seg button.on { background: #2a3140; color: var(--ink); }
 .seg.energy button.on { color: var(--accent); }
+.seg.colour button.on { color: var(--good); }
 .seg.hands button.on:nth-child(2) { color: var(--lh); }
 .seg.hands button.on:nth-child(3) { color: var(--rh); }
 
