@@ -264,6 +264,36 @@
       tip: 'Listen for the chord where the anchor turns dissonant — that bar is the emotional centre of the loop.',
     },
     {
+      id: 'heartbeat',
+      group: 'ballad',
+      name: 'The Heartbeat',
+      tag: 'Beat 1, the and-of-2, beat 4. A pulse with a limp — like a heart.',
+      difficulty: 2,
+      energy: 3,
+      bpm: 78,
+      feel: 'straight',
+      pedal: 'chord',
+      color: 'add2',
+      lh: [
+        { s: 0, d: 8, n: ['R', '5'] },
+        { s: 8, d: 8, n: ['R'] },
+      ],
+      rh: [
+        { s: 0, d: 6, n: 'chord', v: 0.8 },
+        { s: 6, d: 6, n: 'chord', v: 0.6 },
+        { s: 12, d: 4, n: 'chord', v: 0.72 },
+      ],
+      how: {
+        lh: 'Root + fifth on 1, root alone on 3 — steady ground under an unsteady pulse.',
+        rh: 'Three chords a bar: beat 1, the “and” of 2, beat 4 — long, short-early, recover. Add2 colour keeps the repetition warm.',
+      },
+      why:
+        'The 1 / and-of-2 / 4 figure is pop’s heartbeat motif: the second hit lands early enough to feel like a skipped beat, and the third steadies it. Repeat it unchanged while the chords move underneath and the same rhythm reads calm on one chord, anxious on the next — a whole verse of feeling from one bar of rhythm.',
+      use: 'Intimate verses that need a pulse; bridge builds; under a confessional vocal.',
+      songs: ['Taylor Swift piano ballads (“the heartbeat strum”)', '“my tears ricochet” live', 'Half of folklore/evermore at the piano'],
+      tip: 'Keep all three hits inside one dynamic — the rhythm makes the shape, your hand shouldn’t.',
+    },
+    {
       id: 'push',
       group: 'ballad',
       name: 'The Push',

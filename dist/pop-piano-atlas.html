@@ -363,6 +363,73 @@ input, select { font-family: inherit; color: inherit; }
 }
 .tip-box b { color: var(--accent); font-style: italic; font-family: var(--serif); }
 
+/* ---------------------------------------------------------------- arrangements strip */
+
+.arr-strip {
+  margin: 0 22px 14px;
+  padding: 14px 16px;
+  background: var(--bg-raise);
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius);
+  display: flex; flex-direction: column; gap: 11px;
+}
+.arr-head { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+.arr-head h2 { font-family: var(--serif); font-size: 16px; font-weight: 600; }
+.arr-head span { font-size: 12px; color: var(--ink-faint); }
+
+.arr-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 8px;
+}
+.arr-card {
+  text-align: left;
+  background: var(--bg-card);
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius);
+  padding: 10px 12px 9px;
+  transition: background 0.12s, border-color 0.12s, transform 0.08s;
+}
+.arr-card:hover { background: var(--bg-card-hover); border-color: var(--line); }
+.arr-card:active { transform: scale(0.99); }
+.arr-card.selected {
+  border-color: var(--lh);
+  background: linear-gradient(160deg, #1a2029, #191d26);
+  box-shadow: 0 0 20px #5cb8f21c;
+}
+.arr-name { font-family: var(--serif); font-size: 14.5px; font-weight: 600; }
+.arr-card.selected .arr-name { color: var(--lh); }
+.arr-influence { font-size: 10px; text-transform: uppercase; letter-spacing: 0.09em; color: var(--ink-faint); margin: 1px 0 4px; }
+.arr-blurb { font-size: 11.5px; color: var(--ink-dim); line-height: 1.4; }
+.arr-sections { font-size: 10.5px; color: var(--ink-faint); margin-top: 6px; font-family: var(--mono); }
+
+.arr-timeline {
+  display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+  padding-top: 2px;
+}
+.arr-timeline[hidden] { display: none; }
+.sec-chip {
+  display: flex; align-items: baseline; gap: 7px;
+  background: var(--bg-card);
+  border: 1px solid var(--line-soft);
+  border-radius: 8px;
+  padding: 5px 10px;
+  transition: border-color 0.2s, background 0.2s;
+}
+.sec-chip.now {
+  border-color: var(--accent);
+  background: #20211f;
+  box-shadow: 0 0 14px #f2a35c1a;
+}
+.sec-name { font-family: var(--serif); font-size: 13px; font-weight: 600; }
+.sec-chip.now .sec-name { color: var(--accent); }
+.sec-pat { font-size: 11px; color: var(--ink-dim); }
+.sec-energy { font-size: 9px; letter-spacing: 1px; color: var(--ink-faint); }
+.sec-chip.now .sec-energy { color: var(--accent); }
+.sec-arrow { color: var(--ink-faint); font-size: 13px; }
+
+.seg.disabled { opacity: 0.55; pointer-events: none; }
+
 /* footer */
 .foot {
   padding: 4px 24px 18px;
@@ -408,9 +475,12 @@ input, select { font-family: inherit; color: inherit; }
 
       <div class="ctl">
         <label>Energy</label>
-        <div class="seg energy" id="energy">
-          <button data-v="verse" class="on">Verse</button>
-          <button data-v="chorus">Chorus</button>
+        <div class="seg energy" id="energy" title="How big the same pattern plays — from a hush to the final chorus">
+          <button data-v="1">Hush</button>
+          <button data-v="2" class="on">Verse</button>
+          <button data-v="3">Build</button>
+          <button data-v="4">Chorus</button>
+          <button data-v="5">Finale</button>
         </div>
       </div>
 
@@ -451,6 +521,15 @@ input, select { font-family: inherit; color: inherit; }
     </div>
     <div class="bars" id="bars"></div>
     <div class="prog-hint" id="proghint">Type any chords — triads, m7, sus2/4, add9, slash bass like G/B — then press Enter.</div>
+  </section>
+
+  <section class="arr-strip">
+    <div class="arr-head">
+      <h2>Full arrangements</h2>
+      <span>Whole-song arcs: sections, builds and fills, conducted for you. Click any pattern card to take back the wheel.</span>
+    </div>
+    <div class="arr-cards" id="arr-cards"></div>
+    <div class="arr-timeline" id="arr-timeline" hidden></div>
   </section>
 
   <main class="main">
@@ -1139,6 +1218,36 @@ input, select { font-family: inherit; color: inherit; }
       tip: 'Listen for the chord where the anchor turns dissonant — that bar is the emotional centre of the loop.',
     },
     {
+      id: 'heartbeat',
+      group: 'ballad',
+      name: 'The Heartbeat',
+      tag: 'Beat 1, the and-of-2, beat 4. A pulse with a limp — like a heart.',
+      difficulty: 2,
+      energy: 3,
+      bpm: 78,
+      feel: 'straight',
+      pedal: 'chord',
+      color: 'add2',
+      lh: [
+        { s: 0, d: 8, n: ['R', '5'] },
+        { s: 8, d: 8, n: ['R'] },
+      ],
+      rh: [
+        { s: 0, d: 6, n: 'chord', v: 0.8 },
+        { s: 6, d: 6, n: 'chord', v: 0.6 },
+        { s: 12, d: 4, n: 'chord', v: 0.72 },
+      ],
+      how: {
+        lh: 'Root + fifth on 1, root alone on 3 — steady ground under an unsteady pulse.',
+        rh: 'Three chords a bar: beat 1, the “and” of 2, beat 4 — long, short-early, recover. Add2 colour keeps the repetition warm.',
+      },
+      why:
+        'The 1 / and-of-2 / 4 figure is pop’s heartbeat motif: the second hit lands early enough to feel like a skipped beat, and the third steadies it. Repeat it unchanged while the chords move underneath and the same rhythm reads calm on one chord, anxious on the next — a whole verse of feeling from one bar of rhythm.',
+      use: 'Intimate verses that need a pulse; bridge builds; under a confessional vocal.',
+      songs: ['Taylor Swift piano ballads (“the heartbeat strum”)', '“my tears ricochet” live', 'Half of folklore/evermore at the piano'],
+      tip: 'Keep all three hits inside one dynamic — the rhythm makes the shape, your hand shouldn’t.',
+    },
+    {
       id: 'push',
       group: 'ballad',
       name: 'The Push',
@@ -1608,6 +1717,125 @@ input, select { font-family: inherit; color: inherit; }
 
 </script>
   <script>
+/* Pop Piano Atlas — full arrangements.
+ * A style recipe = a sequence of sections, each looping the whole progression with
+ * one pattern, an energy level (1–5), a dynamics arc, and an optional fill into the
+ * next section. The same chords, played as a complete performance: intro, verse,
+ * build, chorus, afterglow — the arc is the arrangement.
+ *
+ * Section fields:
+ *   pattern — a pattern id from the atlas          energy — 1 hush … 5 finale
+ *   loops   — times through the progression (default 1)
+ *   dyn     — [startMul, endMul] velocity arc across the section
+ *   fill    — 'walkup' (LH climbs into the next root) | 'lift' (RH sus4 push +
+ *             anticipated chord) | 'walkup+lift' — played in the section's last bar
+ */
+(function () {
+  'use strict';
+
+  const ARRANGEMENTS = [
+    {
+      id: 'slow-burn',
+      name: 'The Slow Burn',
+      influence: 'Adele · power-ballad arc',
+      bpm: 68,
+      blurb: 'Whole notes to a wall of sound in five moves. The classic ballad crescendo.',
+      why:
+        'Big ballads are built on withholding: the first minute spends almost nothing, so the chorus can spend everything. Each section here adds exactly one thing — motion, then density, then register — and the fills tell your ear a change is coming before it arrives.',
+      sections: [
+        { name: 'Intro', pattern: 'bedrock', energy: 1, dyn: [0.85, 0.92] },
+        { name: 'Verse', pattern: 'roll-158', energy: 2, dyn: [0.92, 1.0], fill: 'lift' },
+        { name: 'Build', pattern: 'cascade-16', energy: 3, dyn: [0.95, 1.1], fill: 'walkup+lift' },
+        { name: 'Chorus', pattern: 'anthem', energy: 5, dyn: [1.05, 1.1] },
+        { name: 'Afterglow', pattern: 'first-arpeggio', energy: 1, dyn: [0.9, 0.75] },
+      ],
+    },
+    {
+      id: 'cardigan',
+      name: 'Cardigan Weather',
+      influence: 'Taylor Swift · live-piano ballad',
+      bpm: 80,
+      blurb: 'Pedal tones, folk picking, the heartbeat pulse — intimacy that swells and recedes.',
+      why:
+        'The Taylor-at-the-piano sound is repetition recoloured: a fixed figure (the heartbeat, the anchor) held steady while the harmony moves underneath. Energy comes from texture, not volume — the chorus here is a strum, not a shout, and the outro empties the room again.',
+      sections: [
+        { name: 'Intro', pattern: 'pedal-point', energy: 1, dyn: [0.85, 0.95] },
+        { name: 'Verse', pattern: 'folk-roll', energy: 2, dyn: [0.92, 1.0] },
+        { name: 'Heartbeat', pattern: 'heartbeat', energy: 3, dyn: [0.95, 1.08], fill: 'lift' },
+        { name: 'Chorus', pattern: 'campfire', energy: 4, dyn: [1.0, 1.08] },
+        { name: 'Outro', pattern: 'bedrock', energy: 1, dyn: [0.88, 0.72] },
+      ],
+    },
+    {
+      id: 'piano-man',
+      name: 'Piano Man Fuel',
+      influence: 'Ben Folds · Elton John · rock piano',
+      bpm: 126,
+      blurb: 'Quarter pulse, pushed chords, driving octaves — the piano as a whole rhythm section.',
+      why:
+        'Rock piano is an escalation of pulse: quarters become pushed 8ths become relentless octaves. The walk-up fills are the tell — that little 6̂–7̂ climb into the next root is how a player signals “hold on, here it comes” without a drummer.',
+      sections: [
+        { name: 'Verse', pattern: 'quarter-pulse', energy: 2, dyn: [0.95, 1.0] },
+        { name: 'Pre-chorus', pattern: 'push', energy: 3, dyn: [1.0, 1.08], fill: 'walkup' },
+        { name: 'Chorus', pattern: 'folds-drive', energy: 4, dyn: [1.02, 1.08], fill: 'walkup' },
+        { name: 'Last chorus', pattern: 'anthem', energy: 5, dyn: [1.05, 1.12] },
+      ],
+    },
+    {
+      id: 'yellow-lights',
+      name: 'Yellow Lights',
+      influence: 'Coldplay · arena anthem build',
+      bpm: 108,
+      blurb: 'A hypnotic 3-3-2 that swells into stadium octaves. Bring a lighter.',
+      why:
+        'The anthem formula: start with a loop so hypnotic the listener stops noticing it, then raise the floor under them. The 3-3-2 carries the verse, straight 8ths take over as the pulse locks in, and the final section is the same chords played as wide as two hands allow.',
+      sections: [
+        { name: 'Intro', pattern: 'pedal-point', energy: 1, dyn: [0.85, 0.95] },
+        { name: 'Verse', pattern: 'clocks-332', energy: 2, dyn: [0.95, 1.02] },
+        { name: 'Build', pattern: 'eighth-pump', energy: 3, dyn: [0.98, 1.1], fill: 'lift' },
+        { name: 'Chorus', pattern: 'anthem', energy: 5, dyn: [1.05, 1.12] },
+      ],
+    },
+    {
+      id: 'sunday-service',
+      name: 'Sunday Service',
+      influence: 'Gospel-soul · Aretha to worship piano',
+      bpm: 84,
+      blurb: 'Backbeats, a walking bass, and sus4 suspensions that resolve like an amen.',
+      why:
+        'Gospel piano moves the congregation by tension and release: backbeat comping makes the pulse physical, the ’50s walk keeps the floor moving, and the sus chorus leans on every chord before letting it land. The walk-up fill is pure church — the bass always announces the next chord.',
+      sections: [
+        { name: 'Verse', pattern: 'pillars', energy: 2, dyn: [0.92, 1.0] },
+        { name: 'Groove', pattern: 'backbeat', energy: 3, dyn: [0.98, 1.04] },
+        { name: 'Walk', pattern: 'fifties-walk', energy: 3, dyn: [1.0, 1.06], fill: 'walkup' },
+        { name: 'Chorus', pattern: 'gospel-sus', energy: 4, dyn: [1.02, 1.1], fill: 'walkup+lift' },
+        { name: 'Benediction', pattern: 'bedrock', energy: 2, dyn: [0.9, 0.78] },
+      ],
+    },
+    {
+      id: 'small-hours',
+      name: 'Small Hours',
+      influence: 'Neo-soul · late-night groove',
+      bpm: 96,
+      blurb: 'Swing, skank, snap — the groove tightens as the night gets later.',
+      why:
+        'Groove arrangements build by subdivision, not volume: the shuffle lopes in 8ths, the off-beats halve the space, and the 16th snap fills what’s left. Then the last section exhales — ending a groove quietly is the oldest late-night move there is.',
+      sections: [
+        { name: 'Stroll', pattern: 'shuffle', energy: 2, dyn: [0.95, 1.0] },
+        { name: 'Skank', pattern: 'offbeats', energy: 3, dyn: [0.98, 1.05] },
+        { name: 'Snap', pattern: 'snap-16', energy: 4, dyn: [1.0, 1.08], fill: 'walkup' },
+        { name: 'Fade', pattern: 'first-arpeggio', energy: 1, dyn: [0.88, 0.7] },
+      ],
+    },
+  ];
+
+  const Arrangements = { ARRANGEMENTS };
+  if (typeof module !== 'undefined' && module.exports) module.exports = Arrangements;
+  else window.Arrangements = Arrangements;
+})();
+
+</script>
+  <script>
 /* Pop Piano Atlas — rendering + playback engine.
  * Pure render functions (node-testable) + a lookahead scheduler that drives an
  * injected audio output, so the same code renders playback and MIDI export.
@@ -1663,9 +1891,20 @@ input, select { font-family: inherit; color: inherit; }
       segments,
       voicings,
       susVoicings,
+      colorCache: {}, // per-colour voicing sets, so arrangement sections can mix colours
       tonic,
       romans: segments.map((s) => T.romanNumeral(s.chord, tonic)),
     };
+  }
+
+  /** Voicings + sus cache for a given colour, computed once per context. */
+  function voicingSet(ctx, color) {
+    const key = color || 'plain';
+    if (!ctx.colorCache) ctx.colorCache = {};
+    if (!ctx.colorCache[key]) {
+      ctx.colorCache[key] = { voicings: computeVoicings(ctx.segments, color), sus: {} };
+    }
+    return ctx.colorCache[key];
   }
 
   function segmentAt(ctx, bar, step) {
@@ -1718,16 +1957,27 @@ input, select { font-family: inherit; color: inherit; }
     return [{ step: s, dur: d, segIdx }];
   }
 
-  function susVoicing(ctx, segIdx) {
-    if (!(segIdx in ctx.susVoicings)) {
+  function susVoicing(ctx, vs, segIdx) {
+    if (!(segIdx in vs.sus)) {
       const seg = ctx.segments[segIdx];
       const ch = seg.chord;
       const intervals = ch.intervals.map((i) => (i === 3 || i === 4 ? 5 : i));
       const modChord = { ...ch, intervals, pcs: intervals.map((i) => (ch.rootPc + i) % 12) };
-      ctx.susVoicings[segIdx] = T.voiceChord(modChord, ctx.voicings[segIdx], null);
+      vs.sus[segIdx] = T.voiceChord(modChord, vs.voicings[segIdx], null);
     }
-    return ctx.susVoicings[segIdx];
+    return vs.sus[segIdx];
   }
+
+  /** Normalise an energy setting to a 1–5 level. 'verse'/'chorus' keep their classic meanings. */
+  function energyLevel(energy) {
+    if (energy === 'chorus') return 4;
+    if (energy === 'verse') return 2;
+    const n = +energy;
+    return Number.isFinite(n) && n >= 1 ? Math.min(5, Math.round(n)) : 2;
+  }
+
+  // level →      1     2    3     4     5
+  const ENERGY_VEL = [0, 0.84, 1.0, 1.08, 1.15, 1.24];
 
   // -------------------------------------------------------------- event resolution
 
@@ -1782,20 +2032,46 @@ input, select { font-family: inherit; color: inherit; }
   /**
    * Render one bar into playable events.
    * Returns [{ step, dur, midis, vel, hand }] — step/dur in 16th steps (step may be fractional after swing).
+   *
+   * `energy`: 'verse' | 'chorus' | 1..5 — a five-rung dynamic ladder. 4+ adds octave
+   * doublings (the classic chorus lift); 1 pulls everything back to a hush.
+   * `opts` (all optional, used by arrangements):
+   *   velMul — extra velocity multiplier for section dynamics arcs
+   *   fill   — { type: 'walkup' | 'lift' | 'walkup+lift', targetPc } applied to the
+   *            bar's tail: LH walks up into the next section's root; RH pushes a
+   *            sus4 colour and anticipates the coming chord before the barline.
    */
-  function renderBar(ctx, pattern, barIndex, energy) {
+  function renderBar(ctx, pattern, barIndex, energy, opts) {
     const events = [];
     const bar = barIndex % ctx.totalBars;
-    const chorus = energy === 'chorus';
+    const level = energyLevel(energy);
+    const chorus = level >= 4;
     const split = barIsSplit(ctx, bar);
     const seg1Idx = segIndexFor(ctx, bar, 0);
+    const vs = voicingSet(ctx, pattern.color);
+    const fill = opts && opts.fill ? opts.fill : null;
+
+    // fills reshape the bar's tail before rendering, so anticipation/segment
+    // machinery applies to the injected events exactly as to authored ones
+    let lhSource = pattern.lh;
+    let rhSource = pattern.rh;
+    if (fill && /walkup/.test(fill.type)) {
+      lhSource = pattern.lh.filter((ev) => ev.s < 10 && !ev.anticipate);
+    }
+    if (fill && /lift/.test(fill.type)) {
+      rhSource = [
+        ...pattern.rh.filter((ev) => ev.s < 12 && !ev.anticipate),
+        { s: 12, d: 2, n: 'chord', mod: 'sus4', v: 0.72 },
+        { s: 14, d: 2, n: 'chord', v: 0.8, anticipate: true },
+      ];
+    }
 
     // ---- left hand
     // When the chord changes mid-bar, the first bass note under the new chord
     // becomes its root (what a real player does), unless the pattern already
     // lands on a root/octave there or is a deliberate pedal.
     let lhRootedSeg2 = false;
-    for (const ev of pattern.lh) {
+    for (const ev of lhSource) {
       for (const piece of placeEvent(ctx, bar, ev)) {
         const chord = ctx.segments[piece.segIdx].chord;
         let roles = ev.n;
@@ -1828,17 +2104,25 @@ input, select { font-family: inherit; color: inherit; }
       }
     }
 
+    // ---- LH walk-up fill: two approach notes (the 6̂–7̂ climb) into the coming root
+    if (fill && /walkup/.test(fill.type)) {
+      const lastSegIdx = segIndexFor(ctx, bar, 15);
+      const target = T.bassMidi(fill.targetPc, T.RENDER.lhTargetRoot + 2);
+      events.push({ step: 12, dur: 2, midis: [target - 3], vel: 0.68, hand: 'lh', segIdx: lastSegIdx, fill: true });
+      events.push({ step: 14, dur: 2, midis: [target - 1], vel: 0.74, hand: 'lh', segIdx: lastSegIdx, fill: true });
+    }
+
     // ---- right hand
-    for (const ev of pattern.rh) {
+    for (const ev of rhSource) {
       for (const piece of placeEvent(ctx, bar, ev)) {
         const chord = ctx.segments[piece.segIdx].chord;
         let midis;
         if (ev.n === 'anchor') {
           midis = anchorNotes(ctx.tonic);
         } else if (ev.mod === 'sus4') {
-          midis = susVoicing(ctx, piece.segIdx).slice();
+          midis = susVoicing(ctx, vs, piece.segIdx).slice();
         } else {
-          const v = ctx.voicings[piece.segIdx];
+          const v = vs.voicings[piece.segIdx];
           if (ev.n === 'chord') midis = v.slice();
           else if (ev.n === 'shell') midis = [v[0], v[v.length - 1]];
           else if (ev.n === 'top') midis = [v[v.length - 1]];
@@ -1864,9 +2148,9 @@ input, select { font-family: inherit; color: inherit; }
       }
     }
 
-    // ---- energy velocity shaping
-    const velScale = chorus ? 1.15 : 1.0;
-    for (const ev of events) ev.vel = Math.min(1, ev.vel * velScale);
+    // ---- energy velocity shaping (five-rung ladder × optional section arc)
+    const velScale = ENERGY_VEL[level] * (opts && opts.velMul ? opts.velMul : 1);
+    for (const ev of events) ev.vel = Math.max(0.12, Math.min(1, ev.vel * velScale));
 
     // ---- pedal: let notes ring to the end of their chord segment
     if (pattern.pedal === 'chord') {
@@ -1889,6 +2173,42 @@ input, select { font-family: inherit; color: inherit; }
     return events;
   }
 
+  // -------------------------------------------------------------- arrangements
+
+  /**
+   * Flatten an arrangement (a sequence of sections, each looping the whole
+   * progression with a pattern + energy + dynamics arc) into one timeline
+   * entry per bar: { pattern, energy, velMul, fill, sectionIdx, barInSection }.
+   *
+   * Sections always span whole loops of the progression, so the bar after any
+   * section boundary is bar 0 — which makes the fill's walk-up target simply
+   * the progression's opening bass note.
+   */
+  function buildTimeline(ctx, arrangement, patternById) {
+    const entries = [];
+    const targetPc = ctx.segments[0].chord.bassPc;
+    arrangement.sections.forEach((sec, sectionIdx) => {
+      const pattern = patternById[sec.pattern];
+      if (!pattern) throw new Error(`arrangement ${arrangement.id}: unknown pattern "${sec.pattern}"`);
+      const loops = sec.loops || 1;
+      const totalBars = loops * ctx.totalBars;
+      const dyn = sec.dyn || [1, 1];
+      for (let b = 0; b < totalBars; b++) {
+        const frac = totalBars === 1 ? 1 : b / (totalBars - 1);
+        const lastBar = b === totalBars - 1;
+        entries.push({
+          pattern,
+          energy: sec.energy,
+          velMul: dyn[0] + (dyn[1] - dyn[0]) * frac,
+          fill: lastBar && sec.fill ? { type: sec.fill, targetPc } : null,
+          sectionIdx,
+          barInSection: b,
+        });
+      }
+    });
+    return entries;
+  }
+
   // -------------------------------------------------------------- scheduler
 
   function createPlayer(getAudio) {
@@ -1902,12 +2222,15 @@ input, select { font-family: inherit; color: inherit; }
       ctxData: null, // song context
       pattern: null,
       pendingPattern: null,
+      arrangement: null, // active arrangement (null = single-pattern mode)
+      timeline: null, // flattened per-bar plan when an arrangement is active
+      timelineStart: 0, // absolute bar at which the timeline's bar 0 lands
       bar: 0, // next bar to schedule (absolute)
       nextBarTime: 0,
       timer: null,
       listeners: { bar: [], swap: [], stop: [] },
       viz: [], // {tOn,tOff,midi,hand}
-      beats: [], // {t, bar, beat}
+      beats: [], // {t, bar, beat, sectionIdx?}
     };
 
     function emit(name, arg) {
@@ -1922,14 +2245,25 @@ input, select { font-family: inherit; color: inherit; }
       const audio = getAudio();
       const spb = secondsPerBar();
       const stepDur = spb / STEPS_PER_BAR;
-      // apply queued pattern at the barline
-      if (state.pendingPattern) {
+      let entry = null;
+      if (state.timeline && state.timeline.length) {
+        // arrangement mode: the timeline is the conductor
+        const tlBar = state.bar - state.timelineStart;
+        entry = state.timeline[((tlBar % state.timeline.length) + state.timeline.length) % state.timeline.length];
+        if (entry.pattern !== state.pattern) {
+          state.pattern = entry.pattern;
+          emit('swap', state.pattern);
+        }
+      } else if (state.pendingPattern) {
+        // apply queued pattern at the barline
         state.pattern = state.pendingPattern;
         state.pendingPattern = null;
         emit('swap', state.pattern);
       }
       const barMod = state.bar % state.ctxData.totalBars;
-      const events = renderBar(state.ctxData, state.pattern, barMod, state.energy);
+      const events = entry
+        ? renderBar(state.ctxData, entry.pattern, barMod, entry.energy, { velMul: entry.velMul, fill: entry.fill })
+        : renderBar(state.ctxData, state.pattern, barMod, state.energy);
       for (const ev of events) {
         if (state.hands !== 'both' && ev.hand !== state.hands) continue;
         const t = t0 + ev.step * stepDur + (Math.random() - 0.5) * 0.008;
@@ -1943,7 +2277,9 @@ input, select { font-family: inherit; color: inherit; }
       if (state.metronome) {
         for (let b = 0; b < 4; b++) audio.click(t0 + b * (spb / 4), b === 0);
       }
-      for (let b = 0; b < 4; b++) state.beats.push({ t: t0 + b * (spb / 4), bar: barMod, beat: b });
+      for (let b = 0; b < 4; b++) {
+        state.beats.push({ t: t0 + b * (spb / 4), bar: barMod, beat: b, sectionIdx: entry ? entry.sectionIdx : null });
+      }
       // trim old viz data
       const now = audio.now();
       if (state.viz.length > 400) state.viz = state.viz.filter((v) => v.tOff > now - 0.5);
@@ -1968,7 +2304,27 @@ input, select { font-family: inherit; color: inherit; }
         const ctx = buildContext(progressionText, state.pendingPattern || state.pattern);
         if (!ctx.ok) return ctx;
         state.ctxData = ctx;
+        if (state.arrangement) {
+          state.timeline = buildTimeline(ctx, state.arrangement, state.arrangement._patternById);
+        }
         return ctx;
+      },
+      setArrangement(arrangement, patternById) {
+        if (!state.ctxData) return null;
+        arrangement._patternById = patternById; // kept for timeline rebuilds on song change
+        state.arrangement = arrangement;
+        state.timeline = buildTimeline(state.ctxData, arrangement, patternById);
+        state.pendingPattern = null;
+        state.pattern = state.timeline[0].pattern;
+        // start the arc from its top: immediately when idle, at the next barline when playing
+        state.timelineStart = state.playing ? state.bar : 0;
+        if (!state.playing) state.bar = 0;
+        emit('swap', state.pattern);
+        return state.timeline;
+      },
+      clearArrangement() {
+        state.arrangement = null;
+        state.timeline = null;
       },
       setPattern(pattern, immediate) {
         if (!state.playing || immediate) {
@@ -1994,6 +2350,7 @@ input, select { font-family: inherit; color: inherit; }
         audio.resume();
         state.playing = true;
         state.bar = 0;
+        state.timelineStart = 0;
         let start = audio.now() + 0.08;
         if (state.countIn) {
           const spb = secondsPerBar() / 4;
@@ -2034,22 +2391,9 @@ input, select { font-family: inherit; color: inherit; }
     return [...s].map((c) => c.charCodeAt(0));
   }
 
-  /** Render the whole progression once and emit a Standard MIDI File (format 1). */
-  function exportMidi(ctxData, pattern, energy, bpm) {
+  /** Emit a format-1 SMF from per-hand note lists. Shared by pattern + arrangement export. */
+  function emitSmf(collect, songTicks, bpm) {
     const PPQ = 480;
-    const stepTicks = PPQ / 4;
-    const collect = { lh: [], rh: [] };
-    for (let bar = 0; bar < ctxData.totalBars; bar++) {
-      const events = renderBar(ctxData, pattern, bar, energy);
-      for (const ev of events) {
-        const on = Math.round((bar * 16 + ev.step) * stepTicks);
-        const off = on + Math.max(1, Math.round(ev.dur * stepTicks));
-        for (const m of ev.midis) {
-          collect[ev.hand].push({ on, off, midi: m, vel: Math.round(30 + ev.vel * 90) });
-        }
-      }
-    }
-    const songTicks = ctxData.totalBars * 16 * stepTicks;
 
     function trackBytes(notes, name) {
       // clip overlapping repeats of the same pitch
@@ -2100,7 +2444,52 @@ input, select { font-family: inherit; color: inherit; }
     return new Uint8Array(bytes);
   }
 
-  const Engine = { STEPS_PER_BAR, buildSegments, computeVoicings, buildContext, renderBar, createPlayer, exportMidi };
+  const STEP_TICKS = 480 / 4;
+
+  function collectBar(collect, events, barOffset) {
+    for (const ev of events) {
+      const on = Math.round((barOffset * 16 + ev.step) * STEP_TICKS);
+      const off = on + Math.max(1, Math.round(ev.dur * STEP_TICKS));
+      for (const m of ev.midis) {
+        collect[ev.hand].push({ on, off, midi: m, vel: Math.round(30 + ev.vel * 90) });
+      }
+    }
+  }
+
+  /** Render the whole progression once and emit a Standard MIDI File (format 1). */
+  function exportMidi(ctxData, pattern, energy, bpm) {
+    const collect = { lh: [], rh: [] };
+    for (let bar = 0; bar < ctxData.totalBars; bar++) {
+      collectBar(collect, renderBar(ctxData, pattern, bar, energy), bar);
+    }
+    return emitSmf(collect, ctxData.totalBars * 16 * STEP_TICKS, bpm);
+  }
+
+  /** Render a full arrangement timeline (every section, arc and fill) to MIDI. */
+  function exportArrangementMidi(ctxData, timeline, bpm) {
+    const collect = { lh: [], rh: [] };
+    timeline.forEach((entry, i) => {
+      const events = renderBar(ctxData, entry.pattern, i % ctxData.totalBars, entry.energy, {
+        velMul: entry.velMul,
+        fill: entry.fill,
+      });
+      collectBar(collect, events, i);
+    });
+    return emitSmf(collect, timeline.length * 16 * STEP_TICKS, bpm);
+  }
+
+  const Engine = {
+    STEPS_PER_BAR,
+    buildSegments,
+    computeVoicings,
+    buildContext,
+    renderBar,
+    energyLevel,
+    buildTimeline,
+    createPlayer,
+    exportMidi,
+    exportArrangementMidi,
+  };
   if (typeof module !== 'undefined' && module.exports) module.exports = Engine;
   else window.Engine = Engine;
 })();
@@ -2135,11 +2524,11 @@ input, select { font-family: inherit; color: inherit; }
 
     // generated impulse response: short warm room
     reverb = ctx.createConvolver();
-    reverb.buffer = makeImpulse(1.9, 2.6);
+    reverb.buffer = makeImpulse(2.2, 2.6);
     dryGain = ctx.createGain();
     dryGain.gain.value = 0.82;
     wetGain = ctx.createGain();
-    wetGain.gain.value = 0.16;
+    wetGain.gain.value = 0.185;
 
     dryGain.connect(comp);
     reverb.connect(wetGain);
@@ -2189,8 +2578,17 @@ input, select { font-family: inherit; color: inherit; }
     const amp = ctx.createGain();
     amp.gain.value = 0;
     lp.connect(amp);
-    amp.connect(dryGain);
-    amp.connect(reverb);
+    // stereo placement by register, as heard from the keyboard: bass left, treble
+    // right. This is what separates "a chord" from "two hands on one instrument".
+    let out = amp;
+    if (ctx.createStereoPanner) {
+      const pan = ctx.createStereoPanner();
+      pan.pan.value = Math.max(-0.42, Math.min(0.42, (midi - 60) / 46));
+      amp.connect(pan);
+      out = pan;
+    }
+    out.connect(dryGain);
+    out.connect(reverb);
 
     // register-dependent natural decay (long bass, short treble), bounded by held dur
     const natural = Math.max(0.8, 6.5 - (midi - 21) * 0.055);
@@ -2241,7 +2639,7 @@ input, select { font-family: inherit; color: inherit; }
     ng.gain.value = 0.05 * v;
     noise.connect(nf);
     nf.connect(ng);
-    ng.connect(dryGain);
+    ng.connect(out === amp ? dryGain : out); // hammer tick sits in the note's stereo position
     noise.start(t0);
     live.add(noise);
     noise.onended = () => live.delete(noise);
@@ -2312,13 +2710,17 @@ input, select { font-family: inherit; color: inherit; }
 
   const T = window.Theory;
   const A = window.Atlas;
+  const R = window.Arrangements;
   const E = window.Engine;
 
   const $ = (id) => document.getElementById(id);
 
   const player = E.createPlayer(() => window.AudioOut);
 
+  const PATTERN_BY_ID = Object.fromEntries(A.PATTERNS.map((p) => [p.id, p]));
+
   let currentPattern = null; // the pattern the UI is presenting (may be queued)
+  let currentArrangement = null; // active full arrangement (null = manual pattern mode)
   let currentPresetId = 'axis';
 
   // ------------------------------------------------------------------ deck
@@ -2384,6 +2786,7 @@ input, select { font-family: inherit; color: inherit; }
   }
 
   function selectPattern(p, autoplay) {
+    if (currentArrangement) exitArrangement();
     currentPattern = p;
     player.setPattern(p);
     // when idle, adopt the pattern's natural tempo so it always auditions at a musical speed
@@ -2427,6 +2830,90 @@ input, select { font-family: inherit; color: inherit; }
       `beat 1 of ${chord.symbol}: <b class="l">${names(notes.lh) || '—'}</b> · <b class="r">${names(notes.rh) || '—'}</b>` +
       (inv ? ` <span class="inv">(${inv})</span>` : '');
     el.title = 'The Atlas voices each chord as close as possible to the previous one — smooth voice leading. That is why you often get inversions instead of root position.';
+  }
+
+  // ------------------------------------------------------------------ arrangements
+
+  const arrCardEls = {};
+  const sectionChipEls = []; // chips for the active arrangement's sections
+
+  function buildArrangements() {
+    const wrap = $('arr-cards');
+    for (const arr of R.ARRANGEMENTS) {
+      const card = document.createElement('button');
+      card.className = 'arr-card';
+      card.innerHTML = `
+        <div class="arr-name">${arr.name}</div>
+        <div class="arr-influence">${arr.influence}</div>
+        <div class="arr-blurb">${arr.blurb}</div>
+        <div class="arr-sections">${arr.sections.map((s) => s.name).join(' → ')}</div>`;
+      card.addEventListener('click', () => selectArrangement(arr));
+      wrap.appendChild(card);
+      arrCardEls[arr.id] = card;
+    }
+  }
+
+  function markArrCards() {
+    for (const arr of R.ARRANGEMENTS) {
+      arrCardEls[arr.id].classList.toggle('selected', !!currentArrangement && currentArrangement.id === arr.id);
+    }
+  }
+
+  function renderTimelineChips(arr) {
+    const tl = $('arr-timeline');
+    tl.innerHTML = '';
+    sectionChipEls.length = 0;
+    arr.sections.forEach((sec, i) => {
+      const chip = document.createElement('div');
+      chip.className = 'sec-chip';
+      const pat = PATTERN_BY_ID[sec.pattern];
+      chip.innerHTML = `<span class="sec-name">${sec.name}</span><span class="sec-pat">${pat.name}</span><span class="sec-energy">${'▮'.repeat(sec.energy)}${'▯'.repeat(5 - sec.energy)}</span>`;
+      tl.appendChild(chip);
+      sectionChipEls.push(chip);
+      if (i < arr.sections.length - 1) {
+        const arrow = document.createElement('span');
+        arrow.className = 'sec-arrow';
+        arrow.textContent = sec.fill ? '⤳' : '→';
+        arrow.title = sec.fill ? `fill: ${sec.fill}` : '';
+        tl.appendChild(arrow);
+      }
+    });
+    tl.hidden = false;
+  }
+
+  function selectArrangement(arr) {
+    currentArrangement = arr;
+    const timeline = player.setArrangement(arr, PATTERN_BY_ID);
+    if (!timeline) return;
+    player.state.bpm = arr.bpm;
+    $('tempo').value = arr.bpm;
+    $('bpm').textContent = arr.bpm + ' bpm';
+    $('energy').classList.add('disabled');
+    renderTimelineChips(arr);
+    markArrCards();
+    currentPattern = player.state.pattern;
+    markCards();
+    renderStage(currentPattern);
+    if (!player.state.playing) startPlayback();
+  }
+
+  function exitArrangement() {
+    currentArrangement = null;
+    player.clearArrangement();
+    $('arr-timeline').hidden = true;
+    $('energy').classList.remove('disabled');
+    sectionChipEls.length = 0;
+    markArrCards();
+  }
+
+  function highlightSection(idx) {
+    sectionChipEls.forEach((chip, i) => chip.classList.toggle('now', i === idx));
+    if (currentArrangement && idx != null && currentArrangement.sections[idx]) {
+      const energy = String(currentArrangement.sections[idx].energy);
+      $('energy')
+        .querySelectorAll('button')
+        .forEach((b) => b.classList.toggle('on', b.dataset.v === energy));
+    }
   }
 
   // ------------------------------------------------------------------ stage: header + learn
@@ -2653,8 +3140,10 @@ input, select { font-family: inherit; color: inherit; }
       $(segId).addEventListener('click', (e) => {
         const btn = e.target.closest('button');
         if (!btn) return;
+        if (segId === 'energy' && currentArrangement) return; // sections conduct the energy
         player.state[key] = btn.dataset.v;
         $(segId).querySelectorAll('button').forEach((b) => b.classList.toggle('on', b === btn));
+        if (segId === 'energy' && !player.state.playing && currentPattern) previewOnKeyboard(currentPattern);
       });
     }
 
@@ -2668,13 +3157,22 @@ input, select { font-family: inherit; color: inherit; }
     });
 
     $('midi').addEventListener('click', () => {
-      const pat = player.state.pendingPattern || player.state.pattern;
-      if (!pat || !player.state.ctxData) return;
-      const bytes = E.exportMidi(player.state.ctxData, pat, player.state.energy, player.state.bpm);
+      if (!player.state.ctxData) return;
+      const song = currentPresetId === '_custom' ? 'custom' : currentPresetId;
+      let bytes, name;
+      if (currentArrangement && player.state.timeline) {
+        bytes = E.exportArrangementMidi(player.state.ctxData, player.state.timeline, player.state.bpm);
+        name = `atlas-${song}-${currentArrangement.id}.mid`;
+      } else {
+        const pat = player.state.pendingPattern || player.state.pattern;
+        if (!pat) return;
+        bytes = E.exportMidi(player.state.ctxData, pat, player.state.energy, player.state.bpm);
+        name = `atlas-${song}-${pat.id}.mid`;
+      }
       const blob = new Blob([bytes], { type: 'audio/midi' });
       const a = document.createElement('a');
       a.href = URL.createObjectURL(blob);
-      a.download = `atlas-${currentPresetId === '_custom' ? 'custom' : currentPresetId}-${pat.id}.mid`;
+      a.download = name;
       a.click();
       setTimeout(() => URL.revokeObjectURL(a.href), 5000);
     });
@@ -2728,6 +3226,7 @@ input, select { font-family: inherit; color: inherit; }
       // current beat → bar chip + playhead
       let cur = null;
       for (const b of player.state.beats) if (b.t <= now) cur = b;
+      if (cur && cur.sectionIdx != null) highlightSection(cur.sectionIdx);
       if (cur && cur.bar >= 0) {
         document.querySelectorAll('.bar-chip').forEach((el) => {
           el.classList.toggle('now', +el.dataset.bar === cur.bar);
@@ -2749,10 +3248,21 @@ input, select { font-family: inherit; color: inherit; }
 
   // ------------------------------------------------------------------ init
 
-  player.on('swap', () => markCards());
-  player.on('stop', () => markCards());
+  player.on('swap', (p) => {
+    markCards();
+    if (currentArrangement && p) {
+      // the arrangement is conducting: keep the stage teaching whatever is sounding
+      currentPattern = p;
+      renderStage(p);
+    }
+  });
+  player.on('stop', () => {
+    markCards();
+    sectionChipEls.forEach((chip) => chip.classList.remove('now'));
+  });
 
   buildDeck();
+  buildArrangements();
   buildPresets();
   buildKeyboard();
   wireTransport();

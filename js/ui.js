@@ -4,13 +4,17 @@
 
   const T = window.Theory;
   const A = window.Atlas;
+  const R = window.Arrangements;
   const E = window.Engine;
 
   const $ = (id) => document.getElementById(id);
 
   const player = E.createPlayer(() => window.AudioOut);
 
+  const PATTERN_BY_ID = Object.fromEntries(A.PATTERNS.map((p) => [p.id, p]));
+
   let currentPattern = null; // the pattern the UI is presenting (may be queued)
+  let currentArrangement = null; // active full arrangement (null = manual pattern mode)
   let currentPresetId = 'axis';
 
   // ------------------------------------------------------------------ deck
@@ -76,6 +80,7 @@
   }
 
   function selectPattern(p, autoplay) {
+    if (currentArrangement) exitArrangement();
     currentPattern = p;
     player.setPattern(p);
     // when idle, adopt the pattern's natural tempo so it always auditions at a musical speed
@@ -119,6 +124,90 @@
       `beat 1 of ${chord.symbol}: <b class="l">${names(notes.lh) || '—'}</b> · <b class="r">${names(notes.rh) || '—'}</b>` +
       (inv ? ` <span class="inv">(${inv})</span>` : '');
     el.title = 'The Atlas voices each chord as close as possible to the previous one — smooth voice leading. That is why you often get inversions instead of root position.';
+  }
+
+  // ------------------------------------------------------------------ arrangements
+
+  const arrCardEls = {};
+  const sectionChipEls = []; // chips for the active arrangement's sections
+
+  function buildArrangements() {
+    const wrap = $('arr-cards');
+    for (const arr of R.ARRANGEMENTS) {
+      const card = document.createElement('button');
+      card.className = 'arr-card';
+      card.innerHTML = `
+        <div class="arr-name">${arr.name}</div>
+        <div class="arr-influence">${arr.influence}</div>
+        <div class="arr-blurb">${arr.blurb}</div>
+        <div class="arr-sections">${arr.sections.map((s) => s.name).join(' → ')}</div>`;
+      card.addEventListener('click', () => selectArrangement(arr));
+      wrap.appendChild(card);
+      arrCardEls[arr.id] = card;
+    }
+  }
+
+  function markArrCards() {
+    for (const arr of R.ARRANGEMENTS) {
+      arrCardEls[arr.id].classList.toggle('selected', !!currentArrangement && currentArrangement.id === arr.id);
+    }
+  }
+
+  function renderTimelineChips(arr) {
+    const tl = $('arr-timeline');
+    tl.innerHTML = '';
+    sectionChipEls.length = 0;
+    arr.sections.forEach((sec, i) => {
+      const chip = document.createElement('div');
+      chip.className = 'sec-chip';
+      const pat = PATTERN_BY_ID[sec.pattern];
+      chip.innerHTML = `<span class="sec-name">${sec.name}</span><span class="sec-pat">${pat.name}</span><span class="sec-energy">${'▮'.repeat(sec.energy)}${'▯'.repeat(5 - sec.energy)}</span>`;
+      tl.appendChild(chip);
+      sectionChipEls.push(chip);
+      if (i < arr.sections.length - 1) {
+        const arrow = document.createElement('span');
+        arrow.className = 'sec-arrow';
+        arrow.textContent = sec.fill ? '⤳' : '→';
+        arrow.title = sec.fill ? `fill: ${sec.fill}` : '';
+        tl.appendChild(arrow);
+      }
+    });
+    tl.hidden = false;
+  }
+
+  function selectArrangement(arr) {
+    currentArrangement = arr;
+    const timeline = player.setArrangement(arr, PATTERN_BY_ID);
+    if (!timeline) return;
+    player.state.bpm = arr.bpm;
+    $('tempo').value = arr.bpm;
+    $('bpm').textContent = arr.bpm + ' bpm';
+    $('energy').classList.add('disabled');
+    renderTimelineChips(arr);
+    markArrCards();
+    currentPattern = player.state.pattern;
+    markCards();
+    renderStage(currentPattern);
+    if (!player.state.playing) startPlayback();
+  }
+
+  function exitArrangement() {
+    currentArrangement = null;
+    player.clearArrangement();
+    $('arr-timeline').hidden = true;
+    $('energy').classList.remove('disabled');
+    sectionChipEls.length = 0;
+    markArrCards();
+  }
+
+  function highlightSection(idx) {
+    sectionChipEls.forEach((chip, i) => chip.classList.toggle('now', i === idx));
+    if (currentArrangement && idx != null && currentArrangement.sections[idx]) {
+      const energy = String(currentArrangement.sections[idx].energy);
+      $('energy')
+        .querySelectorAll('button')
+        .forEach((b) => b.classList.toggle('on', b.dataset.v === energy));
+    }
   }
 
   // ------------------------------------------------------------------ stage: header + learn
@@ -345,8 +434,10 @@
       $(segId).addEventListener('click', (e) => {
         const btn = e.target.closest('button');
         if (!btn) return;
+        if (segId === 'energy' && currentArrangement) return; // sections conduct the energy
         player.state[key] = btn.dataset.v;
         $(segId).querySelectorAll('button').forEach((b) => b.classList.toggle('on', b === btn));
+        if (segId === 'energy' && !player.state.playing && currentPattern) previewOnKeyboard(currentPattern);
       });
     }
 
@@ -360,13 +451,22 @@
     });
 
     $('midi').addEventListener('click', () => {
-      const pat = player.state.pendingPattern || player.state.pattern;
-      if (!pat || !player.state.ctxData) return;
-      const bytes = E.exportMidi(player.state.ctxData, pat, player.state.energy, player.state.bpm);
+      if (!player.state.ctxData) return;
+      const song = currentPresetId === '_custom' ? 'custom' : currentPresetId;
+      let bytes, name;
+      if (currentArrangement && player.state.timeline) {
+        bytes = E.exportArrangementMidi(player.state.ctxData, player.state.timeline, player.state.bpm);
+        name = `atlas-${song}-${currentArrangement.id}.mid`;
+      } else {
+        const pat = player.state.pendingPattern || player.state.pattern;
+        if (!pat) return;
+        bytes = E.exportMidi(player.state.ctxData, pat, player.state.energy, player.state.bpm);
+        name = `atlas-${song}-${pat.id}.mid`;
+      }
       const blob = new Blob([bytes], { type: 'audio/midi' });
       const a = document.createElement('a');
       a.href = URL.createObjectURL(blob);
-      a.download = `atlas-${currentPresetId === '_custom' ? 'custom' : currentPresetId}-${pat.id}.mid`;
+      a.download = name;
       a.click();
       setTimeout(() => URL.revokeObjectURL(a.href), 5000);
     });
@@ -420,6 +520,7 @@
       // current beat → bar chip + playhead
       let cur = null;
       for (const b of player.state.beats) if (b.t <= now) cur = b;
+      if (cur && cur.sectionIdx != null) highlightSection(cur.sectionIdx);
       if (cur && cur.bar >= 0) {
         document.querySelectorAll('.bar-chip').forEach((el) => {
           el.classList.toggle('now', +el.dataset.bar === cur.bar);
@@ -441,10 +542,21 @@
 
   // ------------------------------------------------------------------ init
 
-  player.on('swap', () => markCards());
-  player.on('stop', () => markCards());
+  player.on('swap', (p) => {
+    markCards();
+    if (currentArrangement && p) {
+      // the arrangement is conducting: keep the stage teaching whatever is sounding
+      currentPattern = p;
+      renderStage(p);
+    }
+  });
+  player.on('stop', () => {
+    markCards();
+    sectionChipEls.forEach((chip) => chip.classList.remove('now'));
+  });
 
   buildDeck();
+  buildArrangements();
   buildPresets();
   buildKeyboard();
   wireTransport();
