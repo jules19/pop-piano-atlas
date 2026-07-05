@@ -53,9 +53,20 @@
       segments,
       voicings,
       susVoicings,
+      colorCache: {}, // per-colour voicing sets, so arrangement sections can mix colours
       tonic,
       romans: segments.map((s) => T.romanNumeral(s.chord, tonic)),
     };
+  }
+
+  /** Voicings + sus cache for a given colour, computed once per context. */
+  function voicingSet(ctx, color) {
+    const key = color || 'plain';
+    if (!ctx.colorCache) ctx.colorCache = {};
+    if (!ctx.colorCache[key]) {
+      ctx.colorCache[key] = { voicings: computeVoicings(ctx.segments, color), sus: {} };
+    }
+    return ctx.colorCache[key];
   }
 
   function segmentAt(ctx, bar, step) {
@@ -108,16 +119,27 @@
     return [{ step: s, dur: d, segIdx }];
   }
 
-  function susVoicing(ctx, segIdx) {
-    if (!(segIdx in ctx.susVoicings)) {
+  function susVoicing(ctx, vs, segIdx) {
+    if (!(segIdx in vs.sus)) {
       const seg = ctx.segments[segIdx];
       const ch = seg.chord;
       const intervals = ch.intervals.map((i) => (i === 3 || i === 4 ? 5 : i));
       const modChord = { ...ch, intervals, pcs: intervals.map((i) => (ch.rootPc + i) % 12) };
-      ctx.susVoicings[segIdx] = T.voiceChord(modChord, ctx.voicings[segIdx], null);
+      vs.sus[segIdx] = T.voiceChord(modChord, vs.voicings[segIdx], null);
     }
-    return ctx.susVoicings[segIdx];
+    return vs.sus[segIdx];
   }
+
+  /** Normalise an energy setting to a 1–5 level. 'verse'/'chorus' keep their classic meanings. */
+  function energyLevel(energy) {
+    if (energy === 'chorus') return 4;
+    if (energy === 'verse') return 2;
+    const n = +energy;
+    return Number.isFinite(n) && n >= 1 ? Math.min(5, Math.round(n)) : 2;
+  }
+
+  // level →      1     2    3     4     5
+  const ENERGY_VEL = [0, 0.84, 1.0, 1.08, 1.15, 1.24];
 
   // -------------------------------------------------------------- event resolution
 
@@ -131,6 +153,7 @@
       case 'R': return root;
       case '3': return root + third;
       case '5': return root + fifth;
+      case '6': return root + (chord.isMinor ? 10 : 9); // 6th colour; on minor chords the 7th sings instead
       case '8': return root + 12;
       case '10': return root + 12 + third;
       case '12': return root + 12 + fifth;
@@ -169,23 +192,87 @@
     return out;
   }
 
+  /** Connector (passing chord) into the NEXT bar's first chord, if one applies here.
+   *  Patterns that pedal (static bass is their point) or push their own anticipations
+   *  into the barline already own that moment — no connector on top. */
+  function connectorForBar(ctx, pattern, bar, mode) {
+    if (pattern.lh.some((e) => e.n.includes && e.n.includes('pedal'))) return null;
+    const tailAnticipates = [...pattern.lh, ...pattern.rh].some((e) => e.anticipate && e.s >= 12);
+    if (tailAnticipates) return null;
+    if (!ctx.connCache) ctx.connCache = {};
+    const key = mode + ':' + (bar % ctx.totalBars);
+    if (!(key in ctx.connCache)) {
+      const cur = ctx.segments[segIndexFor(ctx, bar, 15)].chord;
+      const next = ctx.segments[segIndexFor(ctx, bar + 1, 0)].chord;
+      ctx.connCache[key] = T.connectorFor(cur, next, mode);
+    }
+    return ctx.connCache[key];
+  }
+
+  /** Voice a connector chord close to the current segment's voicing (cached). */
+  function voicingFor(ctx, vs, chord, segIdx) {
+    if (!vs.connVoicings) vs.connVoicings = {};
+    const key = segIdx + ':' + chord.symbol;
+    if (!(key in vs.connVoicings)) {
+      vs.connVoicings[key] = T.voiceChord(chord, vs.voicings[segIdx], null);
+    }
+    return vs.connVoicings[key];
+  }
+
+  function nearestPitch(voicing, target) {
+    let best = voicing[0];
+    for (const m of voicing) if (Math.abs(m - target) < Math.abs(best - target)) best = m;
+    return best;
+  }
+
   /**
    * Render one bar into playable events.
    * Returns [{ step, dur, midis, vel, hand }] — step/dur in 16th steps (step may be fractional after swing).
+   *
+   * `energy`: 'verse' | 'chorus' | 1..5 — a five-rung dynamic ladder. 4+ adds octave
+   * doublings (the classic chorus lift); 1 pulls everything back to a hush.
+   * `opts` (all optional, used by arrangements and the colour control):
+   *   velMul        — extra velocity multiplier for section dynamics arcs
+   *   fill          — { type, targetPc }: 'walkup' (LH climbs into the next root),
+   *                   'lift' (RH sus4 push + anticipation), 'walkup+lift',
+   *                   'pianoman' (RH dyad fill, fifth fixed on top), or
+   *                   'stab' (stop-time: beat 1 hits, then silence)
+   *   colour        — 'off' | 'subtle' | 'rich': auto passing chords on beat 4
+   *                   before harmony changes (see Theory.connectorFor)
+   *   colorOverride — voicing colour ('add9'…) replacing the pattern's own, so
+   *                   arrangements can brighten chords on later sections
    */
-  function renderBar(ctx, pattern, barIndex, energy) {
+  function renderBar(ctx, pattern, barIndex, energy, opts) {
     const events = [];
     const bar = barIndex % ctx.totalBars;
-    const chorus = energy === 'chorus';
+    const level = energyLevel(energy);
+    const chorus = level >= 4;
     const split = barIsSplit(ctx, bar);
     const seg1Idx = segIndexFor(ctx, bar, 0);
+    const vs = voicingSet(ctx, (opts && opts.colorOverride) || pattern.color);
+    const fill = opts && opts.fill ? opts.fill : null;
+
+    // fills reshape the bar's tail before rendering, so anticipation/segment
+    // machinery applies to the injected events exactly as to authored ones
+    let lhSource = pattern.lh;
+    let rhSource = pattern.rh;
+    if (fill && /walkup/.test(fill.type)) {
+      lhSource = pattern.lh.filter((ev) => ev.s < 10 && !ev.anticipate);
+    }
+    if (fill && /lift/.test(fill.type)) {
+      rhSource = [
+        ...pattern.rh.filter((ev) => ev.s < 12 && !ev.anticipate),
+        { s: 12, d: 2, n: 'chord', mod: 'sus4', v: 0.72 },
+        { s: 14, d: 2, n: 'chord', v: 0.8, anticipate: true },
+      ];
+    }
 
     // ---- left hand
     // When the chord changes mid-bar, the first bass note under the new chord
     // becomes its root (what a real player does), unless the pattern already
     // lands on a root/octave there or is a deliberate pedal.
     let lhRootedSeg2 = false;
-    for (const ev of pattern.lh) {
+    for (const ev of lhSource) {
       for (const piece of placeEvent(ctx, bar, ev)) {
         const chord = ctx.segments[piece.segIdx].chord;
         let roles = ev.n;
@@ -218,17 +305,31 @@
       }
     }
 
+    // ---- LH walk-up fill: two approach notes (the 6̂–7̂ climb) into the coming root
+    if (fill && /walkup/.test(fill.type)) {
+      const lastSegIdx = segIndexFor(ctx, bar, 15);
+      const target = T.bassMidi(fill.targetPc, T.RENDER.lhTargetRoot + 2);
+      events.push({ step: 12, dur: 2, midis: [target - 3], vel: 0.68, hand: 'lh', segIdx: lastSegIdx, fill: true });
+      events.push({ step: 14, dur: 2, midis: [target - 1], vel: 0.74, hand: 'lh', segIdx: lastSegIdx, fill: true });
+    }
+
     // ---- right hand
-    for (const ev of pattern.rh) {
+    for (const ev of rhSource) {
       for (const piece of placeEvent(ctx, bar, ev)) {
         const chord = ctx.segments[piece.segIdx].chord;
         let midis;
         if (ev.n === 'anchor') {
           midis = anchorNotes(ctx.tonic);
+        } else if (ev.n === 'box') {
+          // the Elton box: the voicing's top note doubled an octave below —
+          // outer octave "boxing in" the harmony makes any triad sound huge
+          const base = ev.mod === 'sus4' ? susVoicing(ctx, vs, piece.segIdx) : vs.voicings[piece.segIdx];
+          const top = base[base.length - 1];
+          midis = [...new Set([top - 12, ...base])].sort((a, b) => a - b);
         } else if (ev.mod === 'sus4') {
-          midis = susVoicing(ctx, piece.segIdx).slice();
+          midis = susVoicing(ctx, vs, piece.segIdx).slice();
         } else {
-          const v = ctx.voicings[piece.segIdx];
+          const v = vs.voicings[piece.segIdx];
           if (ev.n === 'chord') midis = v.slice();
           else if (ev.n === 'shell') midis = [v[0], v[v.length - 1]];
           else if (ev.n === 'top') midis = [v[v.length - 1]];
@@ -236,9 +337,26 @@
           else if (ev.n && ev.n.arp) midis = [arpNote(ev.n.arp, chord)];
           else midis = v.slice();
         }
-        if (chorus && (ev.n === 'chord' || ev.mod === 'sus4')) {
+        if (chorus && (ev.n === 'chord' || ev.n === 'box' || ev.mod === 'sus4')) {
           const top = midis[midis.length - 1];
           if (top + 12 <= 88) midis = [...midis, top + 12];
+        }
+        // gospel grace slide: a soft chromatic crush into the major third, played
+        // just ahead of the hit — the ♭3→3 ornament that says "player, not playback"
+        if (ev.grace && !piece.reattack) {
+          const third = midis.find((m) => (m - chord.rootPc + 1200) % 12 === 4);
+          if (third) {
+            events.push({
+              step: Math.max(0, piece.step - 0.4),
+              dur: 0.5,
+              midis: [third - 1],
+              vel: (ev.v != null ? ev.v : 0.7) * 0.4,
+              hand: 'rh',
+              segIdx: piece.segIdx,
+              grace: true,
+              noRing: true,
+            });
+          }
         }
         const vel = (ev.v != null ? ev.v : 0.7) * (piece.reattack ? 0.85 : 1);
         events.push({
@@ -254,13 +372,120 @@
       }
     }
 
-    // ---- energy velocity shaping
-    const velScale = chorus ? 1.15 : 1.0;
-    for (const ev of events) ev.vel = Math.min(1, ev.vel * velScale);
+    // ---- Piano Man fill: RH dyad cells, the fifth fixed on top while the lower
+    // voice walks third → root, closing with a pickup dyad on the coming chord
+    if (fill && /pianoman/.test(fill.type)) {
+      for (let i = events.length - 1; i >= 0; i--) {
+        const e = events[i];
+        if (e.hand !== 'rh' || e.anticipate || e.grace) continue;
+        if (e.step >= 10) events.splice(i, 1);
+        else if (e.step + e.dur > 10) {
+          e.dur = 10 - e.step;
+          e.noRing = true;
+        }
+      }
+      const lastSegIdx = segIndexFor(ctx, bar, 15);
+      const nextSegIdx = segIndexFor(ctx, bar + 1, 0);
+      const cur = ctx.segments[lastSegIdx].chord;
+      const next = ctx.segments[nextSegIdx].chord;
+      const top = arpNote('12', cur);
+      events.push({ step: 10, dur: 2, midis: [arpNote('10', cur), top], vel: 0.58, hand: 'rh', segIdx: lastSegIdx, fill: true });
+      events.push({ step: 12, dur: 2, midis: [arpNote('8', cur), top], vel: 0.62, hand: 'rh', segIdx: lastSegIdx, fill: true });
+      events.push({
+        step: 14,
+        dur: 2,
+        midis: [arpNote('10', next), arpNote('12', next)],
+        vel: 0.6,
+        hand: 'rh',
+        segIdx: nextSegIdx,
+        intoNextBar: true,
+        fill: true,
+      });
+    }
+
+    // ---- auto passing chords ("colour"): on the last beat before the harmony
+    // moves, the bass walks — an inversion, a secondary dominant's leading tone,
+    // or a chromatic diminished — exactly as the gospel/pop playbook prescribes.
+    const colour = opts && opts.colour;
+    if (colour && colour !== 'off' && !fill) {
+      const conn = connectorForBar(ctx, pattern, bar, colour);
+      if (conn) {
+        const lastSegIdx = segIndexFor(ctx, bar, 15);
+        for (let i = events.length - 1; i >= 0; i--) {
+          const e = events[i];
+          if (e.anticipate || e.grace) continue;
+          if (e.hand === 'lh') {
+            if (e.step >= 12) events.splice(i, 1);
+            else if (e.step + e.dur > 12) {
+              e.dur = 12 - e.step;
+              e.noRing = true;
+            }
+          }
+        }
+        events.push({
+          step: 12,
+          dur: 4,
+          midis: [T.bassMidi(conn.chord.bassPc, T.RENDER.lhTargetRoot + 2)],
+          vel: 0.64,
+          hand: 'lh',
+          segIdx: lastSegIdx,
+          connector: true,
+        });
+        // walkup keeps the same harmony (only the bass moves); the chromatic kinds
+        // re-voice any right-hand tail hit — or add a soft shell when the pattern
+        // holds through beat 4, so the passing harmony is actually heard
+        if (conn.kind !== 'walkup') {
+          const connVoicing = voicingFor(ctx, vs, conn.chord, lastSegIdx);
+          let retargeted = false;
+          for (const e of events) {
+            if (e.hand === 'rh' && !e.anticipate && !e.grace && !e.fill && e.step >= 12) {
+              e.midis = e.midis.length > 1 ? connVoicing.slice() : [nearestPitch(connVoicing, e.midis[0])];
+              e.connector = true;
+              retargeted = true;
+            }
+          }
+          if (!retargeted && (conn.kind === 'dominant' || conn.kind === 'dim')) {
+            for (const e of events) {
+              if (e.hand === 'rh' && !e.grace && !e.anticipate && e.step < 12 && e.step + e.dur > 12) {
+                e.dur = 12 - e.step;
+                e.noRing = true;
+              }
+            }
+            events.push({
+              step: 12,
+              dur: 4,
+              midis: [connVoicing[0], connVoicing[connVoicing.length - 1]],
+              vel: 0.5,
+              hand: 'rh',
+              segIdx: lastSegIdx,
+              connector: true,
+            });
+          }
+        }
+      }
+    }
+
+    // ---- stop-time stab: beat 1 lands, then silence — the oldest drama in gospel
+    if (fill && fill.type === 'stab') {
+      for (let i = events.length - 1; i >= 0; i--) {
+        const e = events[i];
+        if (e.step >= 4) events.splice(i, 1);
+        else {
+          e.dur = Math.min(e.dur, 6);
+          e.vel = Math.min(1, e.vel * 1.18);
+          e.noRing = true;
+        }
+      }
+    }
+
+    // ---- energy velocity shaping (five-rung ladder × optional section arc)
+    const velScale = ENERGY_VEL[level] * (opts && opts.velMul ? opts.velMul : 1);
+    for (const ev of events) ev.vel = Math.max(0.12, Math.min(1, ev.vel * velScale));
 
     // ---- pedal: let notes ring to the end of their chord segment
     if (pattern.pedal === 'chord') {
       for (const ev of events) {
+        if (ev.noRing || ev.grace) continue;
         const seg = ctx.segments[ev.segIdx];
         const end = ev.intoNextBar ? STEPS_PER_BAR + seg.end : seg.end;
         const ringTo = Math.max(ev.dur, end - ev.step);
@@ -279,6 +504,44 @@
     return events;
   }
 
+  // -------------------------------------------------------------- arrangements
+
+  /**
+   * Flatten an arrangement (a sequence of sections, each looping the whole
+   * progression with a pattern + energy + dynamics arc) into one timeline
+   * entry per bar: { pattern, energy, velMul, fill, sectionIdx, barInSection }.
+   *
+   * Sections always span whole loops of the progression, so the bar after any
+   * section boundary is bar 0 — which makes the fill's walk-up target simply
+   * the progression's opening bass note.
+   */
+  function buildTimeline(ctx, arrangement, patternById) {
+    const entries = [];
+    const targetPc = ctx.segments[0].chord.bassPc;
+    arrangement.sections.forEach((sec, sectionIdx) => {
+      const pattern = patternById[sec.pattern];
+      if (!pattern) throw new Error(`arrangement ${arrangement.id}: unknown pattern "${sec.pattern}"`);
+      const loops = sec.loops || 1;
+      const totalBars = loops * ctx.totalBars;
+      const dyn = sec.dyn || [1, 1];
+      for (let b = 0; b < totalBars; b++) {
+        const frac = totalBars === 1 ? 1 : b / (totalBars - 1);
+        const lastBar = b === totalBars - 1;
+        entries.push({
+          pattern,
+          energy: sec.energy,
+          velMul: dyn[0] + (dyn[1] - dyn[0]) * frac,
+          fill: lastBar && sec.fill ? { type: sec.fill, targetPc } : null,
+          colour: sec.colour || null, // per-section passing-chord mode
+          voicing: sec.voicing || null, // per-section colour upgrade (triads → add9…)
+          sectionIdx,
+          barInSection: b,
+        });
+      }
+    });
+    return entries;
+  }
+
   // -------------------------------------------------------------- scheduler
 
   function createPlayer(getAudio) {
@@ -286,18 +549,22 @@
       playing: false,
       bpm: 84,
       energy: 'verse',
+      colour: 'off', // passing-chord mode: 'off' | 'subtle' | 'rich'
       hands: 'both',
       metronome: false,
       countIn: false,
       ctxData: null, // song context
       pattern: null,
       pendingPattern: null,
+      arrangement: null, // active arrangement (null = single-pattern mode)
+      timeline: null, // flattened per-bar plan when an arrangement is active
+      timelineStart: 0, // absolute bar at which the timeline's bar 0 lands
       bar: 0, // next bar to schedule (absolute)
       nextBarTime: 0,
       timer: null,
       listeners: { bar: [], swap: [], stop: [] },
       viz: [], // {tOn,tOff,midi,hand}
-      beats: [], // {t, bar, beat}
+      beats: [], // {t, bar, beat, sectionIdx?}
     };
 
     function emit(name, arg) {
@@ -312,14 +579,30 @@
       const audio = getAudio();
       const spb = secondsPerBar();
       const stepDur = spb / STEPS_PER_BAR;
-      // apply queued pattern at the barline
-      if (state.pendingPattern) {
+      let entry = null;
+      if (state.timeline && state.timeline.length) {
+        // arrangement mode: the timeline is the conductor
+        const tlBar = state.bar - state.timelineStart;
+        entry = state.timeline[((tlBar % state.timeline.length) + state.timeline.length) % state.timeline.length];
+        if (entry.pattern !== state.pattern) {
+          state.pattern = entry.pattern;
+          emit('swap', state.pattern);
+        }
+      } else if (state.pendingPattern) {
+        // apply queued pattern at the barline
         state.pattern = state.pendingPattern;
         state.pendingPattern = null;
         emit('swap', state.pattern);
       }
       const barMod = state.bar % state.ctxData.totalBars;
-      const events = renderBar(state.ctxData, state.pattern, barMod, state.energy);
+      const events = entry
+        ? renderBar(state.ctxData, entry.pattern, barMod, entry.energy, {
+            velMul: entry.velMul,
+            fill: entry.fill,
+            colour: entry.colour || state.colour,
+            colorOverride: entry.voicing,
+          })
+        : renderBar(state.ctxData, state.pattern, barMod, state.energy, { colour: state.colour });
       for (const ev of events) {
         if (state.hands !== 'both' && ev.hand !== state.hands) continue;
         const t = t0 + ev.step * stepDur + (Math.random() - 0.5) * 0.008;
@@ -333,7 +616,9 @@
       if (state.metronome) {
         for (let b = 0; b < 4; b++) audio.click(t0 + b * (spb / 4), b === 0);
       }
-      for (let b = 0; b < 4; b++) state.beats.push({ t: t0 + b * (spb / 4), bar: barMod, beat: b });
+      for (let b = 0; b < 4; b++) {
+        state.beats.push({ t: t0 + b * (spb / 4), bar: barMod, beat: b, sectionIdx: entry ? entry.sectionIdx : null });
+      }
       // trim old viz data
       const now = audio.now();
       if (state.viz.length > 400) state.viz = state.viz.filter((v) => v.tOff > now - 0.5);
@@ -358,7 +643,27 @@
         const ctx = buildContext(progressionText, state.pendingPattern || state.pattern);
         if (!ctx.ok) return ctx;
         state.ctxData = ctx;
+        if (state.arrangement) {
+          state.timeline = buildTimeline(ctx, state.arrangement, state.arrangement._patternById);
+        }
         return ctx;
+      },
+      setArrangement(arrangement, patternById) {
+        if (!state.ctxData) return null;
+        arrangement._patternById = patternById; // kept for timeline rebuilds on song change
+        state.arrangement = arrangement;
+        state.timeline = buildTimeline(state.ctxData, arrangement, patternById);
+        state.pendingPattern = null;
+        state.pattern = state.timeline[0].pattern;
+        // start the arc from its top: immediately when idle, at the next barline when playing
+        state.timelineStart = state.playing ? state.bar : 0;
+        if (!state.playing) state.bar = 0;
+        emit('swap', state.pattern);
+        return state.timeline;
+      },
+      clearArrangement() {
+        state.arrangement = null;
+        state.timeline = null;
       },
       setPattern(pattern, immediate) {
         if (!state.playing || immediate) {
@@ -384,6 +689,7 @@
         audio.resume();
         state.playing = true;
         state.bar = 0;
+        state.timelineStart = 0;
         let start = audio.now() + 0.08;
         if (state.countIn) {
           const spb = secondsPerBar() / 4;
@@ -424,22 +730,9 @@
     return [...s].map((c) => c.charCodeAt(0));
   }
 
-  /** Render the whole progression once and emit a Standard MIDI File (format 1). */
-  function exportMidi(ctxData, pattern, energy, bpm) {
+  /** Emit a format-1 SMF from per-hand note lists. Shared by pattern + arrangement export. */
+  function emitSmf(collect, songTicks, bpm) {
     const PPQ = 480;
-    const stepTicks = PPQ / 4;
-    const collect = { lh: [], rh: [] };
-    for (let bar = 0; bar < ctxData.totalBars; bar++) {
-      const events = renderBar(ctxData, pattern, bar, energy);
-      for (const ev of events) {
-        const on = Math.round((bar * 16 + ev.step) * stepTicks);
-        const off = on + Math.max(1, Math.round(ev.dur * stepTicks));
-        for (const m of ev.midis) {
-          collect[ev.hand].push({ on, off, midi: m, vel: Math.round(30 + ev.vel * 90) });
-        }
-      }
-    }
-    const songTicks = ctxData.totalBars * 16 * stepTicks;
 
     function trackBytes(notes, name) {
       // clip overlapping repeats of the same pitch
@@ -490,7 +783,54 @@
     return new Uint8Array(bytes);
   }
 
-  const Engine = { STEPS_PER_BAR, buildSegments, computeVoicings, buildContext, renderBar, createPlayer, exportMidi };
+  const STEP_TICKS = 480 / 4;
+
+  function collectBar(collect, events, barOffset) {
+    for (const ev of events) {
+      const on = Math.round((barOffset * 16 + ev.step) * STEP_TICKS);
+      const off = on + Math.max(1, Math.round(ev.dur * STEP_TICKS));
+      for (const m of ev.midis) {
+        collect[ev.hand].push({ on, off, midi: m, vel: Math.round(30 + ev.vel * 90) });
+      }
+    }
+  }
+
+  /** Render the whole progression once and emit a Standard MIDI File (format 1). */
+  function exportMidi(ctxData, pattern, energy, bpm, colour) {
+    const collect = { lh: [], rh: [] };
+    for (let bar = 0; bar < ctxData.totalBars; bar++) {
+      collectBar(collect, renderBar(ctxData, pattern, bar, energy, { colour }), bar);
+    }
+    return emitSmf(collect, ctxData.totalBars * 16 * STEP_TICKS, bpm);
+  }
+
+  /** Render a full arrangement timeline (every section, arc and fill) to MIDI. */
+  function exportArrangementMidi(ctxData, timeline, bpm, colour) {
+    const collect = { lh: [], rh: [] };
+    timeline.forEach((entry, i) => {
+      const events = renderBar(ctxData, entry.pattern, i % ctxData.totalBars, entry.energy, {
+        velMul: entry.velMul,
+        fill: entry.fill,
+        colour: entry.colour || colour,
+        colorOverride: entry.voicing,
+      });
+      collectBar(collect, events, i);
+    });
+    return emitSmf(collect, timeline.length * 16 * STEP_TICKS, bpm);
+  }
+
+  const Engine = {
+    STEPS_PER_BAR,
+    buildSegments,
+    computeVoicings,
+    buildContext,
+    renderBar,
+    energyLevel,
+    buildTimeline,
+    createPlayer,
+    exportMidi,
+    exportArrangementMidi,
+  };
   if (typeof module !== 'undefined' && module.exports) module.exports = Engine;
   else window.Engine = Engine;
 })();

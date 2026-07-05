@@ -16,6 +16,10 @@
  *   - 'anchor' RH: a chord-independent key anchor — its tension IS the pattern.
  *     Its LH must still carry root+fifth, but the third check is waived.
  *   - 'pedal-point' LH: key-tonic pedal regardless of chord. RH carries identity.
+ *   - grace events (ev.grace): the gospel ♭3→3 crush — a chromatic ornament by
+ *     definition, resolved into the chord tone it decorates within the same hit.
+ *   - pattern.rhColorTones: intervals a pattern declares as its RH colour (e.g.
+ *     the Crossover's added 6th) — sanctioned the same way pattern colours are.
  */
 const assert = require('assert');
 const T = require('../js/theory.js');
@@ -48,6 +52,7 @@ function allowedPcs(chord, pattern, hand, usesSus) {
   set.add(chord.bassPc % 12);
   if (pattern.color === 'add9' || pattern.color === 'add2') set.add((root + 2) % 12);
   if (hand === 'rh' && usesSus) set.add((root + 5) % 12);
+  if (hand === 'rh' && pattern.rhColorTones) for (const i of pattern.rhColorTones) set.add((root + i) % 12);
   if (hand === 'lh') {
     const third = T.thirdSlot(chord);
     const fifth = chord.quality === 'dim' || chord.quality === 'm7b5' ? 6 : 7;
@@ -71,6 +76,7 @@ for (const prog of PROGRESSIONS) {
       for (const energy of ['verse', 'chorus']) {
         const events = E.renderBar(ctx, pattern, bar, energy);
         for (const ev of events) {
+          if (ev.grace) continue; // chromatic crush ornament — documented exemption
           assert.ok(ev.segIdx != null, `${pattern.id}: event missing segIdx`);
           const seg = ctx.segments[ev.segIdx];
           const chord = seg.chord;

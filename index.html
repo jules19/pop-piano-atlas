@@ -30,9 +30,21 @@
 
       <div class="ctl">
         <label>Energy</label>
-        <div class="seg energy" id="energy">
-          <button data-v="verse" class="on">Verse</button>
-          <button data-v="chorus">Chorus</button>
+        <div class="seg energy" id="energy" title="How big the same pattern plays — from a hush to the final chorus">
+          <button data-v="1">Hush</button>
+          <button data-v="2" class="on">Verse</button>
+          <button data-v="3">Build</button>
+          <button data-v="4">Chorus</button>
+          <button data-v="5">Finale</button>
+        </div>
+      </div>
+
+      <div class="ctl">
+        <label>Colour</label>
+        <div class="seg colour" id="colour" title="Passing chords: the bass walks into each chord change — inversions and walkdowns (Passing), or secondary dominants and chromatic diminished (Gospel)">
+          <button data-v="off" class="on">Plain</button>
+          <button data-v="subtle">Passing</button>
+          <button data-v="rich">Gospel</button>
         </div>
       </div>
 
@@ -73,6 +85,15 @@
     </div>
     <div class="bars" id="bars"></div>
     <div class="prog-hint" id="proghint">Type any chords — triads, m7, sus2/4, add9, slash bass like G/B — then press Enter.</div>
+  </section>
+
+  <section class="arr-strip">
+    <div class="arr-head">
+      <h2>Full arrangements</h2>
+      <span>Whole-song arcs: sections, builds and fills, conducted for you. Click any pattern card to take back the wheel.</span>
+    </div>
+    <div class="arr-cards" id="arr-cards"></div>
+    <div class="arr-timeline" id="arr-timeline" hidden></div>
   </section>
 
   <main class="main">
@@ -141,6 +162,7 @@
 
   <script src="js/theory.js"></script>
   <script src="js/patterns.js"></script>
+  <script src="js/arrangements.js"></script>
   <script src="js/engine.js"></script>
   <script src="js/audio.js"></script>
   <script src="js/ui.js"></script>

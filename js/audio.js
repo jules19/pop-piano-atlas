@@ -26,11 +26,11 @@
 
     // generated impulse response: short warm room
     reverb = ctx.createConvolver();
-    reverb.buffer = makeImpulse(1.9, 2.6);
+    reverb.buffer = makeImpulse(2.2, 2.6);
     dryGain = ctx.createGain();
     dryGain.gain.value = 0.82;
     wetGain = ctx.createGain();
-    wetGain.gain.value = 0.16;
+    wetGain.gain.value = 0.185;
 
     dryGain.connect(comp);
     reverb.connect(wetGain);
@@ -80,8 +80,17 @@
     const amp = ctx.createGain();
     amp.gain.value = 0;
     lp.connect(amp);
-    amp.connect(dryGain);
-    amp.connect(reverb);
+    // stereo placement by register, as heard from the keyboard: bass left, treble
+    // right. This is what separates "a chord" from "two hands on one instrument".
+    let out = amp;
+    if (ctx.createStereoPanner) {
+      const pan = ctx.createStereoPanner();
+      pan.pan.value = Math.max(-0.42, Math.min(0.42, (midi - 60) / 46));
+      amp.connect(pan);
+      out = pan;
+    }
+    out.connect(dryGain);
+    out.connect(reverb);
 
     // register-dependent natural decay (long bass, short treble), bounded by held dur
     const natural = Math.max(0.8, 6.5 - (midi - 21) * 0.055);
@@ -132,7 +141,7 @@
     ng.gain.value = 0.05 * v;
     noise.connect(nf);
     nf.connect(ng);
-    ng.connect(dryGain);
+    ng.connect(out === amp ? dryGain : out); // hammer tick sits in the note's stereo position
     noise.start(t0);
     live.add(noise);
     noise.onended = () => live.delete(noise);

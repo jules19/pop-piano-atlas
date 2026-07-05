@@ -285,6 +285,73 @@
     return candidates[0];
   }
 
+  // ---------------------------------------------------------------- passing chords
+
+  /** Construct a chord object programmatically (for connectors the user never typed). */
+  function buildChord(rootPc, quality, bassPc) {
+    const intervals = QUALITY_MAP[quality];
+    if (!intervals) return null;
+    const name = SHARP_NAMES[rootPc % 12];
+    const bass = bassPc == null ? rootPc : bassPc;
+    return {
+      symbol: name + quality + (bass !== rootPc ? '/' + SHARP_NAMES[bass % 12] : ''),
+      rootPc: rootPc % 12,
+      quality: quality === '' ? 'maj' : quality,
+      intervals,
+      isMinor: quality === 'm' || quality === 'm7' || quality === 'dim' || quality === 'dim7' || quality === 'm7b5',
+      bassPc: bass % 12,
+      hasSlash: bass % 12 !== rootPc % 12,
+      pcs: intervals.map((i) => (rootPc + i) % 12),
+    };
+  }
+
+  /**
+   * A passing chord to play on the last beat before moving from chord A to chord B.
+   * The recipes come straight from the gospel/pop playbook:
+   *  - walkup    (bass 1→3→target):  A in first inversion when B sits a 4th above A
+   *  - walkdown  (bass steps down):  B in first inversion when B sits a 5th above A
+   *  - dominant  (V7 of B, first inversion — its 3rd IS B's leading tone, so the
+   *               bass approaches chromatically from below)
+   *  - dim       (chromatic passing °7 on the semitone between roots a whole step apart)
+   * mode: 'subtle' = diatonic bass moves only (safe under any held harmony);
+   *       'rich'   = adds the chromatic devices (secondary dominants, passing dims).
+   * Returns { kind, chord } or null.
+   */
+  function connectorFor(chordA, chordB, mode) {
+    if (!chordA || !chordB || !mode || mode === 'off') return null;
+    if (chordA.rootPc === chordB.rootPc && chordA.bassPc === chordB.bassPc) return null;
+    if (chordB.quality === 'dim' || chordB.quality === 'dim7' || chordB.quality === 'aug') return null;
+    const dist = (chordB.bassPc - chordA.bassPc + 12) % 12;
+
+    if (mode === 'rich') {
+      if (dist === 2) {
+        // C → C#°7 → Dm : the "scrunchy" chromatic climb
+        return { kind: 'dim', chord: buildChord((chordA.bassPc + 1) % 12, 'dim7') };
+      }
+      // V7 of the target, third in the bass: G7/B → C, B7/D# → Em
+      const domRoot = (chordB.rootPc + 7) % 12;
+      const leadingTone = (chordB.rootPc + 11) % 12;
+      if (leadingTone !== chordA.bassPc) {
+        return { kind: 'dominant', chord: buildChord(domRoot, '7', leadingTone) };
+      }
+      return null;
+    }
+
+    // subtle: only stepwise diatonic bass connectors
+    if (dist === 5 && !chordA.isMinor && chordA.intervals.includes(4)) {
+      // C → C/E → F : bass walks 1-3-4
+      return { kind: 'walkup', chord: buildChord(chordA.rootPc, chordA.quality === 'maj' ? '' : chordA.quality, (chordA.rootPc + 4) % 12) };
+    }
+    if (dist === 7 && !chordB.isMinor && chordB.intervals.includes(4)) {
+      // F → C/E → C : bass steps down onto the target's third first
+      return { kind: 'walkdown', chord: buildChord(chordB.rootPc, chordB.quality === 'maj' ? '' : chordB.quality, (chordB.rootPc + 4) % 12) };
+    }
+    if (dist === 7 && chordB.isMinor && chordB.intervals.includes(3)) {
+      return { kind: 'walkdown', chord: buildChord(chordB.rootPc, 'm', (chordB.rootPc + 3) % 12) };
+    }
+    return null;
+  }
+
   /** The interval filling a chord's "third slot": its real third, or the sus tone
    *  (4th/2nd) for chords that deliberately have none, or the fifth as a last resort. */
   function thirdSlot(chord) {
@@ -339,6 +406,8 @@
     midiToName,
     transposeSymbol,
     voiceChord,
+    buildChord,
+    connectorFor,
     lhRole,
     thirdSlot,
     bassMidi,
